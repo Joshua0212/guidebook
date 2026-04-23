@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="WiFi network name and password for your stay.">
+  <title>WiFi — Guest Guidebook</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="main-content">
+    <div class="container" id="pageContent"></div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    /**
+     * Render WiFi credentials with copy-to-clipboard functionality
+     */
+    function renderPage(property) {
+      const content = document.getElementById('pageContent');
+
+      if (!property || (!property.wifi?.name && !property.wifi?.password)) {
+        content.innerHTML = GuidebookUI.renderEmptyState(
+          '📶',
+          'WiFi Not Configured',
+          'The host hasn\'t added WiFi details yet.'
+        );
+        return;
+      }
+
+      content.innerHTML = `
+        <div class="page-header">
+          <div class="page-icon">📶</div>
+          <h1>WiFi Access</h1>
+          <p>Connect to the internet during your stay</p>
+        </div>
+
+        <div class="card">
+          <div class="wifi-display">
+            <div class="wifi-icon">📶</div>
+
+            <div class="wifi-field">
+              <div class="label">Network Name</div>
+              <div class="value">${GuidebookUI.escapeHtml(property.wifi.name)}</div>
+            </div>
+
+            <div class="wifi-field">
+              <div class="label">Password</div>
+              <div class="wifi-password-row">
+                <div class="value" id="wifiPwd">${GuidebookUI.escapeHtml(property.wifi.password)}</div>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:var(--space-md); justify-content:center; flex-wrap:wrap; margin-top:var(--space-lg);">
+              <button class="btn btn-primary" onclick="GuidebookUI.copyToClipboard('${property.wifi.password.replace(/'/g, "\\'")}', 'WiFi password')" id="copyWifiPwd">
+                📋 Copy Password
+              </button>
+              <button class="btn btn-secondary" onclick="GuidebookUI.copyToClipboard('${property.wifi.name.replace(/'/g, "\\'")}', 'Network name')" id="copyWifiName">
+                📋 Copy Name
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-row" style="animation: fadeInUp 0.5s ease 0.2s backwards;">
+          <span class="info-icon">💡</span>
+          <div class="info-content">
+            <h4>Tip</h4>
+            <p>If you have trouble connecting, try forgetting the network and reconnecting. Make sure you're entering the password exactly as shown above.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      GuidebookUI.initGuestPage(renderPage);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="House rules for your stay. Please read and follow all guidelines.">
+  <title>House Rules — Guest Guidebook</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="main-content">
+    <div class="container" id="pageContent"></div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    /**
+     * Render House Rules from the property data
+     */
+    function renderPage(property) {
+      const content = document.getElementById('pageContent');
+
+      if (!property || !property.houseRules) {
+        content.innerHTML = GuidebookUI.renderEmptyState(
+          '📋',
+          'No House Rules Set',
+          'The host hasn\'t added house rules yet.'
+        );
+        return;
+      }
+
+      // Parse rules: split by newlines and render as a list
+      const rulesLines = property.houseRules.split('\n').filter(line => line.trim());
+      const rulesHtml = rulesLines.map((line, i) => `
+        <div class="tip-card" style="animation: fadeInUp 0.4s ease ${0.05 * (i + 1)}s backwards;">
+          <div class="tip-number">${i + 1}</div>
+          <div class="tip-text">${GuidebookUI.escapeHtml(line.trim())}</div>
+        </div>
+      `).join('');
+
+      content.innerHTML = `
+        <div class="page-header">
+          <div class="page-icon">📋</div>
+          <h1>House Rules</h1>
+          <p>Please review and respect these guidelines</p>
+        </div>
+
+        ${rulesHtml}
+
+        <div class="info-row" style="animation: fadeInUp 0.5s ease 0.5s backwards;">
+          <span class="info-icon">🙏</span>
+          <div class="info-content">
+            <h4>Thank You</h4>
+            <p>We appreciate your cooperation in following these guidelines. They help us maintain a great experience for all guests.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      GuidebookUI.initGuestPage(renderPage);
+    });
+  </script>
+</body>
+</html>

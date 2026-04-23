@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Check-in and check-out times and instructions.">
+  <title>Check-in / Check-out — Guest Guidebook</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="main-content">
+    <div class="container" id="pageContent"></div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    /**
+     * Render Check-in/Check-out times and any special instructions
+     */
+    function renderPage(property) {
+      const content = document.getElementById('pageContent');
+
+      if (!property || !property.checkin) {
+        content.innerHTML = GuidebookUI.renderEmptyState(
+          '🕐',
+          'Check-in Info Not Set',
+          'The host hasn\'t added check-in details yet.'
+        );
+        return;
+      }
+
+      const instructionsHtml = property.checkin.instructions
+        ? `<div class="card" style="animation-delay: 0.15s;">
+             <div class="card-header">
+               <h3>📝 Instructions</h3>
+             </div>
+             <div class="rules-content">${GuidebookUI.escapeHtml(property.checkin.instructions)}</div>
+           </div>`
+        : '';
+
+      content.innerHTML = `
+        <div class="page-header">
+          <div class="page-icon">🕐</div>
+          <h1>Check-in & Check-out</h1>
+          <p>Know your arrival and departure times</p>
+        </div>
+
+        <div class="card">
+          <div class="checkin-grid">
+            <div class="checkin-block">
+              <div class="checkin-label">Check-in</div>
+              <div class="checkin-time">${GuidebookUI.escapeHtml(property.checkin.checkinTime)}</div>
+            </div>
+            <div class="checkin-block">
+              <div class="checkin-label">Check-out</div>
+              <div class="checkin-time">${GuidebookUI.escapeHtml(property.checkin.checkoutTime)}</div>
+            </div>
+          </div>
+        </div>
+
+        ${instructionsHtml}
+
+        <div class="info-row" style="animation: fadeInUp 0.5s ease 0.3s backwards;">
+          <span class="info-icon">💡</span>
+          <div class="info-content">
+            <h4>Need flexible timing?</h4>
+            <p>Please contact your host in advance if you need early check-in or late check-out. Availability may vary.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      GuidebookUI.initGuestPage(renderPage);
+    });
+  </script>
+</body>
+</html>

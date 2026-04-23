@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Welcome to your digital guest guidebook. Everything you need for a comfortable stay.">
+  <title>Welcome — Guest Guidebook</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="main-content">
+    <div class="container" id="pageContent">
+      <!-- Content rendered by JavaScript -->
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    /**
+     * Render the Welcome / Overview page
+     * Shows a hero section with property name and quick-link cards to all sections
+     */
+    function renderPage(property) {
+      const content = document.getElementById('pageContent');
+
+      if (!property || !property.name) {
+        content.innerHTML = GuidebookUI.renderEmptyState(
+          '🏡',
+          'No Property Configured',
+          'Please visit the Host Editor to set up your property details.'
+        );
+        return;
+      }
+
+      // Build gallery preview (show first 3 images)
+      let galleryHtml = '';
+      if (property.images && property.images.length > 0) {
+        const previewImages = property.images.slice(0, 3);
+        galleryHtml = `
+          <div class="gallery-grid" style="margin-top: var(--space-xl); max-width: 600px; margin-left: auto; margin-right: auto;">
+            ${previewImages.map((src, i) => `
+              <div class="gallery-item" style="animation-delay: ${0.1 * (i + 1)}s">
+                <img src="${src}" alt="Property photo ${i + 1}">
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      content.innerHTML = `
+        <div class="welcome-hero">
+          <div class="hero-icon">🏡</div>
+          <h1>Welcome to ${GuidebookUI.escapeHtml(property.name)}</h1>
+          <p>Everything you need for a comfortable and memorable stay — all in one place.</p>
+          ${galleryHtml}
+        </div>
+
+        <div class="quick-links">
+          <a href="wifi.html" class="quick-link-card" style="animation: fadeInUp 0.4s ease 0.05s backwards">
+            <span class="ql-icon">📶</span>
+            <span class="ql-label">WiFi</span>
+            <span class="ql-arrow">→</span>
+          </a>
+          <a href="location.html" class="quick-link-card" style="animation: fadeInUp 0.4s ease 0.10s backwards">
+            <span class="ql-icon">📍</span>
+            <span class="ql-label">Location</span>
+            <span class="ql-arrow">→</span>
+          </a>
+          <a href="checkin.html" class="quick-link-card" style="animation: fadeInUp 0.4s ease 0.15s backwards">
+            <span class="ql-icon">🕐</span>
+            <span class="ql-label">Check-in / Check-out</span>
+            <span class="ql-arrow">→</span>
+          </a>
+          <a href="houserules.html" class="quick-link-card" style="animation: fadeInUp 0.4s ease 0.20s backwards">
+            <span class="ql-icon">📋</span>
+            <span class="ql-label">House Rules</span>
+            <span class="ql-arrow">→</span>
+          </a>
+          <a href="amenities.html" class="quick-link-card" style="animation: fadeInUp 0.4s ease 0.25s backwards">
+            <span class="ql-icon">✨</span>
+            <span class="ql-label">Amenities & Photos</span>
+            <span class="ql-arrow">→</span>
+          </a>
+          <a href="emergency.html" class="quick-link-card" style="animation: fadeInUp 0.4s ease 0.30s backwards">
+            <span class="ql-icon">🚨</span>
+            <span class="ql-label">Emergency Contacts</span>
+            <span class="ql-arrow">→</span>
+          </a>
+          <a href="faq.html" class="quick-link-card" style="animation: fadeInUp 0.4s ease 0.35s backwards">
+            <span class="ql-icon">❓</span>
+            <span class="ql-label">FAQ</span>
+            <span class="ql-arrow">→</span>
+          </a>
+          <a href="tips.html" class="quick-link-card" style="animation: fadeInUp 0.4s ease 0.40s backwards">
+            <span class="ql-icon">💡</span>
+            <span class="ql-label">Tips & Reminders</span>
+            <span class="ql-arrow">→</span>
+          </a>
+          <a href="feedback.html" class="quick-link-card" style="animation: fadeInUp 0.4s ease 0.45s backwards">
+            <span class="ql-icon">💬</span>
+            <span class="ql-label">Feedback</span>
+            <span class="ql-arrow">→</span>
+          </a>
+        </div>
+      `;
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', () => {
+      GuidebookUI.initGuestPage(renderPage);
+    });
+  </script>
+</body>
+</html>

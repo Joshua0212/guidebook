@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Frequently asked questions about your stay.">
+  <title>FAQ — Guest Guidebook</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="main-content">
+    <div class="container" id="pageContent"></div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    /**
+     * Render FAQ accordion — click to expand/collapse answers
+     */
+    function renderPage(property) {
+      const content = document.getElementById('pageContent');
+
+      if (!property || !property.faqs || property.faqs.length === 0) {
+        content.innerHTML = GuidebookUI.renderEmptyState(
+          '❓',
+          'No FAQs Available',
+          'The host hasn\'t added frequently asked questions yet.'
+        );
+        return;
+      }
+
+      const faqsHtml = property.faqs.map((faq, i) => `
+        <div class="accordion-item" id="faq-${i}" style="animation: fadeInUp 0.4s ease ${0.05 * (i + 1)}s backwards;">
+          <button class="accordion-header" onclick="toggleAccordion(${i})" id="faqToggle-${i}">
+            <span>${GuidebookUI.escapeHtml(faq.question)}</span>
+            <span class="accordion-arrow">▼</span>
+          </button>
+          <div class="accordion-body" id="faqBody-${i}">
+            <div class="accordion-body-inner">
+              ${GuidebookUI.escapeHtml(faq.answer)}
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      content.innerHTML = `
+        <div class="page-header">
+          <div class="page-icon">❓</div>
+          <h1>Frequently Asked Questions</h1>
+          <p>Quick answers to common questions</p>
+        </div>
+
+        ${faqsHtml}
+      `;
+    }
+
+    /**
+     * Toggle accordion item open/closed
+     * @param {number} index - FAQ index
+     */
+    function toggleAccordion(index) {
+      const item = document.getElementById(`faq-${index}`);
+      const body = document.getElementById(`faqBody-${index}`);
+      const isOpen = item.classList.contains('active');
+
+      // Close all other items
+      document.querySelectorAll('.accordion-item.active').forEach(el => {
+        el.classList.remove('active');
+        el.querySelector('.accordion-body').style.maxHeight = '0';
+      });
+
+      // Toggle the clicked item
+      if (!isOpen) {
+        item.classList.add('active');
+        body.style.maxHeight = body.scrollHeight + 'px';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      GuidebookUI.initGuestPage(renderPage);
+    });
+  </script>
+</body>
+</html>

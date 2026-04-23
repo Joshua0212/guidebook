@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Helpful tips and reminders for your stay.">
+  <title>Tips & Reminders — Guest Guidebook</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="main-content">
+    <div class="container" id="pageContent"></div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    /**
+     * Render Tips as numbered cards
+     */
+    function renderPage(property) {
+      const content = document.getElementById('pageContent');
+
+      if (!property || !property.tips || property.tips.length === 0) {
+        content.innerHTML = GuidebookUI.renderEmptyState(
+          '💡',
+          'No Tips Yet',
+          'The host hasn\'t added any tips or reminders yet.'
+        );
+        return;
+      }
+
+      const tipsHtml = property.tips.map((tip, i) => `
+        <div class="tip-card" style="animation: fadeInUp 0.4s ease ${0.06 * (i + 1)}s backwards;">
+          <div class="tip-number">${i + 1}</div>
+          <div class="tip-text">${GuidebookUI.escapeHtml(tip)}</div>
+        </div>
+      `).join('');
+
+      content.innerHTML = `
+        <div class="page-header">
+          <div class="page-icon">💡</div>
+          <h1>Tips & Reminders</h1>
+          <p>Helpful information to make your stay better</p>
+        </div>
+
+        ${tipsHtml}
+      `;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      GuidebookUI.initGuestPage(renderPage);
+    });
+  </script>
+</body>
+</html>

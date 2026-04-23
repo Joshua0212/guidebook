@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Emergency contact numbers — tap to call.">
+  <title>Emergency Contacts — Guest Guidebook</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="main-content">
+    <div class="container" id="pageContent"></div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    /**
+     * Render Emergency contacts with tap-to-call buttons
+     */
+    function renderPage(property) {
+      const content = document.getElementById('pageContent');
+
+      if (!property || !property.emergency || property.emergency.length === 0) {
+        content.innerHTML = GuidebookUI.renderEmptyState(
+          '🚨',
+          'No Emergency Contacts',
+          'The host hasn\'t added emergency contacts yet.'
+        );
+        return;
+      }
+
+      const contactsHtml = property.emergency.map((contact, i) => `
+        <div class="emergency-card" style="animation: fadeInUp 0.4s ease ${0.05 * (i + 1)}s backwards;">
+          <div class="emergency-info">
+            <div class="em-icon">🚨</div>
+            <div>
+              <h4>${GuidebookUI.escapeHtml(contact.name)}</h4>
+              <p>${GuidebookUI.escapeHtml(contact.number)}</p>
+            </div>
+          </div>
+          <a href="tel:${contact.number.replace(/\s/g, '')}" class="call-btn" id="call-${i}">
+            📞 Call
+          </a>
+        </div>
+      `).join('');
+
+      content.innerHTML = `
+        <div class="page-header">
+          <div class="page-icon">🚨</div>
+          <h1>Emergency Contacts</h1>
+          <p>Important numbers — tap to call</p>
+        </div>
+
+        ${contactsHtml}
+
+        <div class="info-row" style="animation: fadeInUp 0.5s ease 0.4s backwards;">
+          <span class="info-icon">ℹ️</span>
+          <div class="info-content">
+            <h4>In case of emergency</h4>
+            <p>Tap the "Call" button to directly dial the number. For life-threatening emergencies, always call your local emergency services first.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      GuidebookUI.initGuestPage(renderPage);
+    });
+  </script>
+</body>
+</html>

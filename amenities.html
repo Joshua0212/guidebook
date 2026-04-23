@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Amenities available at the property for your comfort.">
+  <title>Amenities — Guest Guidebook</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="main-content">
+    <div class="container" id="pageContent"></div>
+  </main>
+
+  <!-- Lightbox for gallery -->
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-close" onclick="closeLightbox()" id="closeLightboxBtn">✕</button>
+    <img src="" alt="Gallery photo" id="lightboxImg">
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    /**
+     * Amenity icon mapping — returns a relevant emoji for common amenities
+     */
+    function getAmenityIcon(name) {
+      const lower = name.toLowerCase();
+      const map = {
+        'wifi': '📶', 'wi-fi': '📶', 'internet': '📶',
+        'air conditioning': '❄️', 'ac': '❄️', 'aircon': '❄️',
+        'kitchen': '🍳', 'kitchenette': '🍳',
+        'parking': '🅿️', 'garage': '🅿️',
+        'pool': '🏊', 'swimming': '🏊',
+        'gym': '💪', 'fitness': '💪',
+        'tv': '📺', 'television': '📺', 'cable': '📺', 'netflix': '📺',
+        'washer': '🧺', 'laundry': '🧺', 'dryer': '🧺',
+        'iron': '👔',
+        'hair dryer': '💇', 'hairdryer': '💇',
+        'towels': '🛁', 'bath': '🛁', 'shower': '🚿',
+        'bed': '🛏️', 'bedroom': '🛏️',
+        'balcony': '🌅', 'terrace': '🌅', 'patio': '🌅',
+        'garden': '🌿', 'yard': '🌿',
+        'elevator': '🛗', 'lift': '🛗',
+        'heater': '🔥', 'heating': '🔥', 'fireplace': '🔥',
+        'coffee': '☕', 'espresso': '☕',
+        'microwave': '🍽️', 'oven': '🍽️',
+        'refrigerator': '🧊', 'fridge': '🧊',
+        'safe': '🔒', 'security': '🔒',
+        'workspace': '💻', 'desk': '💻', 'work': '💻',
+        'pet': '🐾', 'pets': '🐾',
+        'bbq': '🍖', 'grill': '🍖',
+      };
+      for (const [key, icon] of Object.entries(map)) {
+        if (lower.includes(key)) return icon;
+      }
+      return '✨';
+    }
+
+    /**
+     * Render Amenities as pill-shaped tags + Image Gallery
+     */
+    function renderPage(property) {
+      const content = document.getElementById('pageContent');
+
+      const hasAmenities = property && property.amenities && property.amenities.length > 0;
+      const hasImages = property && property.images && property.images.length > 0;
+
+      if (!hasAmenities && !hasImages) {
+        content.innerHTML = GuidebookUI.renderEmptyState(
+          '✨',
+          'No Amenities Listed',
+          'The host hasn\'t added amenities information yet.'
+        );
+        return;
+      }
+
+      let amenitiesSection = '';
+      if (hasAmenities) {
+        const tagsHtml = property.amenities.map((a, i) => `
+          <div class="amenity-tag" style="animation: fadeInUp 0.3s ease ${0.04 * i}s backwards;">
+            <span class="amenity-icon">${getAmenityIcon(a)}</span>
+            ${GuidebookUI.escapeHtml(a)}
+          </div>
+        `).join('');
+
+        amenitiesSection = `
+          <div class="card">
+            <div class="card-header">
+              <h2>What's Included</h2>
+              <span class="badge badge-gold">${property.amenities.length} items</span>
+            </div>
+            <div class="amenity-grid">${tagsHtml}</div>
+          </div>
+        `;
+      }
+
+      let gallerySection = '';
+      if (hasImages) {
+        const galleryHtml = property.images.map((src, i) => `
+          <div class="gallery-item" onclick="openLightbox('${src.replace(/'/g, "\\'")}')" style="animation: fadeInUp 0.4s ease ${0.05 * i}s backwards;">
+            <img src="${src}" alt="Property photo ${i + 1}" loading="lazy">
+          </div>
+        `).join('');
+
+        gallerySection = `
+          <div class="card" style="animation-delay: 0.2s;">
+            <div class="card-header">
+              <h2>📸 Photo Gallery</h2>
+              <span class="badge badge-gold">${property.images.length} photos</span>
+            </div>
+            <div class="gallery-grid">${galleryHtml}</div>
+          </div>
+        `;
+      }
+
+      content.innerHTML = `
+        <div class="page-header">
+          <div class="page-icon">✨</div>
+          <h1>Amenities</h1>
+          <p>Everything available for your comfort</p>
+        </div>
+
+        ${amenitiesSection}
+        ${gallerySection}
+      `;
+    }
+
+    /**
+     * Open the lightbox with a specific image
+     */
+    function openLightbox(src) {
+      const lb = document.getElementById('lightbox');
+      const img = document.getElementById('lightboxImg');
+      img.src = src;
+      lb.classList.add('active');
+    }
+
+    /**
+     * Close the lightbox
+     */
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('active');
+    }
+
+    // Close on click outside image
+    document.getElementById('lightbox').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeLightbox();
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeLightbox();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      GuidebookUI.initGuestPage(renderPage);
+    });
+  </script>
+</body>
+</html>

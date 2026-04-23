@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Property location and directions via Google Maps.">
+  <title>Location — Guest Guidebook</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="main-content">
+    <div class="container" id="pageContent"></div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    /**
+     * Render Location page with address display and Google Maps navigation button
+     */
+    function renderPage(property) {
+      const content = document.getElementById('pageContent');
+
+      if (!property || !property.address) {
+        content.innerHTML = GuidebookUI.renderEmptyState(
+          '📍',
+          'Location Not Set',
+          'The host hasn\'t added the property address yet.'
+        );
+        return;
+      }
+
+      const encodedAddress = encodeURIComponent(property.address);
+      const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`;
+      const mapsEmbedUrl = `https://maps.google.com/maps?q=${encodedAddress}&output=embed`;
+
+      content.innerHTML = `
+        <div class="page-header">
+          <div class="page-icon">📍</div>
+          <h1>Location</h1>
+          <p>How to find us</p>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Property Address</div>
+          <p style="font-size: var(--font-size-xl); font-weight: 500; margin-bottom: var(--space-lg);">
+            ${GuidebookUI.escapeHtml(property.address)}
+          </p>
+
+          <div style="display:flex; gap:var(--space-md); flex-wrap:wrap;">
+            <a href="${mapsUrl}" target="_blank" rel="noopener" class="btn btn-primary" id="navigateBtn">
+              🧭 Navigate with Google Maps
+            </a>
+            <button class="btn btn-secondary" onclick="GuidebookUI.copyToClipboard('${property.address.replace(/'/g, "\\'")}', 'Address')" id="copyAddressBtn">
+              📋 Copy Address
+            </button>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 0; overflow: hidden; animation-delay: 0.1s;">
+          <iframe
+            src="${mapsEmbedUrl}"
+            width="100%"
+            height="350"
+            style="border:0; display:block;"
+            allowfullscreen=""
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            title="Property location map">
+          </iframe>
+        </div>
+
+        <div class="info-row" style="animation: fadeInUp 0.5s ease 0.3s backwards;">
+          <span class="info-icon">🚗</span>
+          <div class="info-content">
+            <h4>Getting Here</h4>
+            <p>Click the Navigate button above to get turn-by-turn directions from your current location using Google Maps.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      GuidebookUI.initGuestPage(renderPage);
+    });
+  </script>
+</body>
+</html>
