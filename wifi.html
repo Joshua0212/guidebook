@@ -6,17 +6,9 @@
   <meta name="description" content="WiFi network name and password for your stay.">
   <title>WiFi — Guest Guidebook</title>
   <link rel="stylesheet" href="css/style.css">
-  <!-- Firebase v10 Modular SDK -->
+  <!-- Centralized Firebase init to prevent race conditions (BUG 1 & 7) -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      projectId: "YOUR_PROJECT_ID"
-    };
-    const app = initializeApp(firebaseConfig);
-    window.db = getFirestore(app);
+    import './js/firebase.js';
   </script>
 </head>
 <body>
@@ -33,7 +25,10 @@
     function renderPage(property) {
       const content = document.getElementById('pageContent');
 
-      if (!property || (!property.wifi?.name && !property.wifi?.password)) {
+      const wifiName = property && property.wifi ? property.wifi.name || '' : '';
+      const wifiPassword = property && property.wifi ? property.wifi.password || '' : '';
+
+      if (!property || (!wifiName && !wifiPassword)) {
         content.innerHTML = GuidebookUI.renderEmptyState(
           '📶',
           'WiFi Not Configured',
@@ -41,7 +36,6 @@
         );
         return;
       }
-
       content.innerHTML = `
         <div class="page-header">
           <div class="page-icon">📶</div>
@@ -55,21 +49,22 @@
 
             <div class="wifi-field">
               <div class="label">Network Name</div>
-              <div class="value">${GuidebookUI.escapeHtml(property.wifi.name)}</div>
+              <div class="value">${GuidebookUI.escapeHtml(wifiName)}</div>
             </div>
 
             <div class="wifi-field">
               <div class="label">Password</div>
               <div class="wifi-password-row">
-                <div class="value" id="wifiPwd">${GuidebookUI.escapeHtml(property.wifi.password)}</div>
+                <div class="value" id="wifiPwd">${GuidebookUI.escapeHtml(wifiPassword)}</div>
               </div>
             </div>
 
             <div style="display:flex; gap:var(--space-md); justify-content:center; flex-wrap:wrap; margin-top:var(--space-lg);">
-              <button class="btn btn-primary" onclick="GuidebookUI.copyToClipboard('${property.wifi.password.replace(/'/g, "\\'")}', 'WiFi password')" id="copyWifiPwd">
+              <!-- Use data attributes and delegated event listener to avoid XSS via onclick interpolation (BUG 3) -->
+              <button class="btn btn-primary" data-copy data-copy-value="${GuidebookUI.escapeHtml(wifiPassword)}" data-copy-label="WiFi password" id="copyWifiPwd">
                 📋 Copy Password
               </button>
-              <button class="btn btn-secondary" onclick="GuidebookUI.copyToClipboard('${property.wifi.name.replace(/'/g, "\\'")}', 'Network name')" id="copyWifiName">
+              <button class="btn btn-secondary" data-copy data-copy-value="${GuidebookUI.escapeHtml(wifiName)}" data-copy-label="Network name" id="copyWifiName">
                 📋 Copy Name
               </button>
             </div>
@@ -88,6 +83,15 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       GuidebookUI.initGuestPage(renderPage);
+
+      // Delegated click handler for copy buttons to avoid inline onclick (BUG 3)
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest && e.target.closest('[data-copy]');
+        if (!btn) return;
+        const value = btn.getAttribute('data-copy-value') || '';
+        const label = btn.getAttribute('data-copy-label') || 'value';
+        GuidebookUI.copyToClipboard(value, label);
+      });
     });
   </script>
 </body>

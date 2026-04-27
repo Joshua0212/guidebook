@@ -6,6 +6,10 @@
   <meta name="description" content="Share your feedback and suggestions about your stay.">
   <title>Feedback — Guest Guidebook</title>
   <link rel="stylesheet" href="css/style.css">
+  <!-- Centralized Firebase init (BUG 2 & 7) -->
+  <script type="module">
+    import './js/firebase.js';
+  </script>
 </head>
 <body>
   <main class="main-content">
@@ -17,10 +21,12 @@
   <script>
     /**
      * Render Feedback page — submission form + existing feedback list
+     * Use async functions and avoid full re-render on submit (BUG 5)
      */
-    function renderPage(property) {
+    async function renderPage(property) {
       const content = document.getElementById('pageContent');
-      const feedback = GuidebookData.getFeedback();
+      const propertyId = property && property.id ? property.id : await GuidebookData.getActivePropertyId();
+      const feedback = await GuidebookData.getFeedback(propertyId);
 
       let feedbackListHtml = '';
       if (feedback.length > 0) {
@@ -30,17 +36,21 @@
               <h2>Previous Feedback</h2>
               <span class="badge badge-gold">${feedback.length}</span>
             </div>
+            <div id="feedbackList">
             ${feedback.map(fb => `
               <div class="feedback-item">
                 <div class="feedback-meta">
                   <span class="feedback-name">${GuidebookUI.escapeHtml(fb.name)}</span>
                   <span class="feedback-date">${GuidebookUI.formatDate(fb.date)}</span>
                 </div>
-                <p class="feedback-comment">${GuidebookUI.escapeHtml(fb.comment)}</p>
+                <p class="feedback-comment">${GuidebookUI.escapeHtml(fb.comment || fb.text)}</p>
               </div>
             `).join('')}
+            </div>
           </div>
         `;
+      } else {
+        feedbackListHtml = '<div class="card"><div id="feedbackList" class="card-body"><p class="form-hint">No feedback yet.</p></div></div>';
       }
 
       content.innerHTML = `
@@ -55,7 +65,7 @@
             <h2>Leave a Comment</h2>
           </div>
 
-          <form id="feedbackForm" onsubmit="submitFeedback(event)">
+          <form id="feedbackForm">
             <div class="form-group">
               <label class="form-label" for="fbName">Your Name <span style="color:var(--color-text-muted)">(optional)</span></label>
               <input type="text" class="form-input" id="fbName" placeholder="Anonymous Guest" autocomplete="name">
@@ -74,28 +84,38 @@
 
         ${feedbackListHtml}
       `;
-    }
 
-    /**
-     * Handle feedback form submission
-     */
-    function submitFeedback(e) {
-      e.preventDefault();
-
-      const name = document.getElementById('fbName').value.trim();
-      const comment = document.getElementById('fbComment').value.trim();
-
-      if (!comment) {
-        GuidebookUI.showToast('Please enter a comment.', 'error');
-        return;
-      }
-
-      GuidebookData.addFeedback({ name, comment });
-      GuidebookUI.showToast('Thank you for your feedback!', 'success');
-
-      // Re-render the page to show the new feedback
-      const property = GuidebookData.getActiveProperty();
-      renderPage(property);
+      // Attach form handler that prepends new feedback instead of full re-render
+      const form = document.getElementById('feedbackForm');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('fbName').value.trim();
+        const comment = document.getElementById('fbComment').value.trim();
+        if (!comment) { GuidebookUI.showToast('Please enter a comment.', 'error'); return; }
+        try {
+          const propId = propertyId;
+          const feedbackArr = await GuidebookData.addFeedback(propId, { name, comment });
+          GuidebookUI.showToast('Thank you for your feedback!', 'success');
+          // Prepend new entry to the feedback list DOM
+          const newItem = feedbackArr[0];
+          const list = document.getElementById('feedbackList');
+          const html = `
+            <div class="feedback-item">
+              <div class="feedback-meta">
+                <span class="feedback-name">${GuidebookUI.escapeHtml(newItem.name)}</span>
+                <span class="feedback-date">${GuidebookUI.formatDate(newItem.date)}</span>
+              </div>
+              <p class="feedback-comment">${GuidebookUI.escapeHtml(newItem.comment || newItem.text)}</p>
+            </div>
+          `;
+          if (list) list.insertAdjacentHTML('afterbegin', html);
+          // reset form
+          form.reset();
+        } catch (err) {
+          console.error('Failed to submit feedback', err);
+          GuidebookUI.showToast('Failed to submit feedback.', 'error');
+        }
+      });
     }
 
     document.addEventListener('DOMContentLoaded', () => {

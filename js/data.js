@@ -181,12 +181,24 @@ const GuidebookData = (() => {
     }
   }
 
-  async function addFeedback(propertyId, entry) {
+  async function addFeedback(arg1, arg2) {
+    // Support both addFeedback(entry) and addFeedback(propertyId, entry) for backwards compatibility
     try {
+      let propertyId;
+      let entry;
+      if (typeof arg1 === 'object' && arg2 === undefined) {
+        entry = arg1;
+        propertyId = undefined;
+      } else {
+        propertyId = arg1;
+        entry = arg2;
+      }
+
       if (!propertyId) propertyId = await getActivePropertyId();
       const prop = await getPropertyById(propertyId);
       const feedback = prop ? (prop.feedback || []) : [];
-      feedback.unshift({ id: 'fb_' + Date.now(), name: entry.name || 'Guest', text: entry.text || entry.comment || '', date: new Date().toISOString() });
+      const newItem = { id: 'fb_' + Date.now(), name: (entry && entry.name) || 'Guest', text: (entry && (entry.text || entry.comment)) || '', date: new Date().toISOString() };
+      feedback.unshift(newItem);
       await updateProperty(propertyId, { feedback });
       return feedback;
     } catch (e) {

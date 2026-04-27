@@ -7,19 +7,11 @@
   <meta name="description" content="Host Editor — manage your property guidebook settings.">
   <title>Host Editor — Guest Guidebook</title>
   <link rel="stylesheet" href="css/style.css">
-  <!-- QR Code Library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
-  <!-- Firebase v10 Modular SDK -->
+  <!-- QR Code Library (removed defer to avoid race when used in click handler) (BUG 4) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Centralized Firebase init to avoid race and duplicated configs (BUG 1 & 7) -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      projectId: "YOUR_PROJECT_ID"
-    };
-    const app = initializeApp(firebaseConfig);
-    window.db = getFirestore(app);
+    import './js/firebase.js';
   </script>
 </head>
 
