@@ -1,4 +1,4 @@
-/**
+/*
  * admin.js — Host Editor Logic
  * Manages the admin dashboard: property editing, image uploads,
  * multi-property support, QR code generation, and feedback management.
@@ -9,6 +9,15 @@ const AdminPage = (() => {
   let hasChanges = false;
 
   async function init() {
+    try {
+      // Ensure Firebase is initialized before attaching listeners
+      await GuidebookData.waitForDb(3000);
+    } catch (e) {
+      alert('Firebase not ready. Admin features are disabled. Refresh to retry.');
+      console.error('Firebase not ready:', e);
+      return;
+    }
+
     await GuidebookUI.initTheme();
     await GuidebookUI.renderNavigation();
     await ensureAtLeastOneProperty();
@@ -20,7 +29,7 @@ const AdminPage = (() => {
   }
 
   async function ensureAtLeastOneProperty() {
-    const properties = await GuidebookData.getProperties();
+    const properties = await GuidebookData.getAllProperties();
     if (properties.length === 0) {
       await GuidebookData.createProperty('My Studio');
     }
@@ -28,7 +37,7 @@ const AdminPage = (() => {
 
   async function loadPropertySelector() {
     const select = document.getElementById('propertySelect');
-    const properties = await GuidebookData.getProperties();
+    const properties = await GuidebookData.getAllProperties();
     const activeId = await GuidebookData.getActivePropertyId();
     select.innerHTML = properties.map(p =>
       `<option value="${p.id}" ${p.id === activeId ? 'selected' : ''}>${GuidebookUI.escapeHtml(p.name) || 'Unnamed Property'}</option>`
@@ -195,7 +204,7 @@ const AdminPage = (() => {
 
   async function renderFeedbackAdmin() {
     const container = document.getElementById('feedbackAdminList');
-    const feedback = await GuidebookData.getFeedback();
+    const feedback = await GuidebookData.getFeedback(draft && draft.id);
 
     if (!feedback || feedback.length === 0) {
       container.innerHTML = '<p class="form-hint">No feedback received yet.</p>';
@@ -208,7 +217,7 @@ const AdminPage = (() => {
           <span class="feedback-name">${GuidebookUI.escapeHtml(fb.name)}</span>
           <span class="feedback-date">${GuidebookUI.formatDate(fb.date)}</span>
         </div>
-        <p class="feedback-comment">${GuidebookUI.escapeHtml(fb.comment)}</p>
+        <p class="feedback-comment">${GuidebookUI.escapeHtml(fb.comment || fb.text)}</p>
       </div>
     `).join('');
   }
@@ -242,13 +251,18 @@ const AdminPage = (() => {
 
     // Delete property button
     document.getElementById('deletePropertyBtn').addEventListener('click', async () => {
-      const properties = await GuidebookData.getProperties();
+      const properties = await GuidebookData.getAllProperties();
       if (properties.length <= 1) {
         GuidebookUI.showToast('Cannot delete the last property.', 'error');
         return;
       }
       if (confirm(`Delete "${draft.name}"? This cannot be undone.`)) {
-        await GuidebookData.deleteProperty(draft.id);
+        try {
+          await GuidebookData.deleteProperty(draft.id);
+        } catch (e) {
+          alert('Failed to delete property: ' + (e.message || e));
+          return;
+        }
         await loadPropertySelector();
         await loadDraft();
         renderAllSections();
@@ -349,13 +363,15 @@ const AdminPage = (() => {
     document.getElementById('saveBtn').addEventListener('click', saveProperty);
 
     // Preview button
-    document.getElementById('previewBtn').addEventListener('click', () => {
+    document.getElementById('previewBtn').addEventListener('click', async () => {
       if (hasChanges) {
         if (confirm('Save changes before previewing?')) {
-          saveProperty();
+          await saveProperty();
         }
       }
-      window.open('index.html', '_blank');
+      const pid = draft && draft.id ? draft.id : await GuidebookData.getActivePropertyId();
+      const url = 'index.html' + (pid ? ('?property=' + encodeURIComponent(pid)) : '');
+      window.open(url, '_blank');
     });
 
     // QR Code button
@@ -368,10 +384,14 @@ const AdminPage = (() => {
 
     // Clear feedback
     document.getElementById('clearFeedbackBtn').addEventListener('click', async () => {
-      if (confirm('Clear all guest feedback? This cannot be undone.')) {
-        await GuidebookData.clearFeedback();
-        renderFeedbackAdmin();
-        GuidebookUI.showToast('Feedback cleared.', 'info');
+      if (confirm('Clear all guest feedback for this property? This cannot be undone.')) {
+        try {
+          await GuidebookData.clearFeedback(draft.id);
+          await renderFeedbackAdmin();
+          GuidebookUI.showToast('Feedback cleared.', 'info');
+        } catch (e) {
+          alert('Failed to clear feedback: ' + (e.message || e));
+        }
       }
     });
   }
@@ -506,40 +526,22 @@ const AdminPage = (() => {
     }
 
     try {
-      // FIX: Wait for Firebase db to be ready with a retry loop (up to 3s)
-      let attempts = 0;
-      while (!window.db && attempts < 30) {
-        await new Promise(r => setTimeout(r, 100));
-        attempts++;
-      }
-
-      if (!window.db) {
+      // ensure db available
+      try {
+        await GuidebookData.waitForDb(3000);
+      } catch (e) {
         GuidebookUI.showToast('Firebase not ready. Please refresh and try again.', 'error');
         return;
       }
 
-      // FIX: Also save directly to Firestore here as a safety net,
-      // in case GuidebookData.updateProperty doesn't use Firestore
-      const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js");
-      await setDoc(doc(window.db, "guidebook", draft.id || "default"), {
-        name: draft.name,
-        wifi: draft.wifi || {},
-        address: draft.address || '',
-        checkin: draft.checkin || {},
-        houseRules: draft.houseRules || '',
-        emergency: draft.emergency || [],
-        amenities: draft.amenities || [],
-        faqs: draft.faqs || [],
-        tips: draft.tips || [],
-        updatedAt: new Date().toISOString()
-      });
-
-      // Also update via GuidebookData for local state consistency
-      try {
-        await GuidebookData.updateProperty(draft.id, draft);
-      } catch (e) {
-        // Non-fatal: Firestore save already succeeded above
+      // create if needed
+      if (!draft.id) {
+        const created = await GuidebookData.createProperty(draft.name || 'New Property');
+        draft.id = created.id;
       }
+
+      // update via data layer
+      await GuidebookData.updateProperty(draft.id, draft);
 
       hasChanges = false;
       updateSaveBarState();
@@ -568,7 +570,8 @@ const AdminPage = (() => {
     const qrLink = document.getElementById('qrLink');
 
     const baseUrl = window.location.href.replace(/admin\.html.*$/, '');
-    const guestUrl = baseUrl + 'index.html';
+    const pid = draft && draft.id ? draft.id : '';
+    const guestUrl = baseUrl + 'index.html' + (pid ? ('?property=' + encodeURIComponent(pid)) : '');
 
     qrContainer.innerHTML = '';
     qrLink.textContent = guestUrl;

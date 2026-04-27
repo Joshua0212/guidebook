@@ -1,280 +1,224 @@
 /**
- * data.js — Guidebook Data Management Module
- * Handles all Firestore CRUD operations for properties and feedback.
+ * data.js — Guidebook Data Management (Firestore v10 modular)
+ * Exposes async functions for properties and feedback using the
+ * modular `firebase-firestore.js` API. All functions ensure `window.db`
+ * is available before attempting Firestore operations.
  */
 
 const GuidebookData = (() => {
-  // Firestore collection and doc names
-  const GUIDEBOOK_DOC = 'guidebook';
-  const PROPERTIES_KEY = 'properties';
-  const ACTIVE_KEY = 'active_property';
-  const FEEDBACK_KEY = 'feedback';
-  const THEME_KEY = 'theme';
+  const FIRESTORE_SRC = 'https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js';
 
-  /**
-   * Generate a unique ID for new properties
-   * @returns {string} Unique identifier
-   */
   function generateId() {
     return 'prop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
   }
 
-  /**
-   * Returns a blank property template with default values
-   * @returns {Object} Default property object
-   */
   function getDefaultProperty() {
     return {
-      id: generateId(),
       name: '',
       wifi: { name: '', password: '' },
       address: '',
-      emergency: [],
       checkin: { checkinTime: '3:00 PM', checkoutTime: '11:00 AM', instructions: '' },
+      emergency: [],
       houseRules: '',
       amenities: [],
       faqs: [],
       tips: [],
+      feedback: [],
       images: []
     };
   }
 
-  /* ========== Properties CRUD ========== */
-
   /**
-   * Get all stored properties
-   * @returns {Array} Array of property objects
+   * Wait for window.db to be available. Polls until timeout.
+   * @param {number} timeoutMs
    */
-  async function getProperties() {
+  async function waitForDb(timeoutMs = 3000) {
+    const start = Date.now();
+    while (!window.db) {
+      if (Date.now() - start > timeoutMs) throw new Error('Firebase (window.db) not available');
+      await new Promise(r => setTimeout(r, 100));
+    }
+    return window.db;
+  }
+
+  async function getAllProperties() {
     try {
-      if (!window.db) {
-        console.warn('getProperties: Firebase not initialized (window.db is falsy)');
-        return [];
-      }
-      const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-      const ref = doc(window.db, GUIDEBOOK_DOC, PROPERTIES_KEY);
-      const snap = await getDoc(ref);
-      return snap && snap.exists() ? snap.data().properties || [] : [];
+      const db = await waitForDb();
+      const { collection, getDocs } = await import(FIRESTORE_SRC);
+      const col = collection(db, 'properties');
+      const snap = await getDocs(col);
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch (e) {
-      console.error('Error reading properties:', e);
+      console.error('getAllProperties error:', e);
       return [];
     }
   }
 
-  /**
-   * Save the entire properties array to localStorage
-   * @param {Array} properties - Array of property objects
-   */
-  async function saveProperties(properties) {
+  async function getPropertyById(id) {
     try {
-      if (!window.db) throw new Error('Firebase not initialized');
-      const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-      const ref = doc(window.db, GUIDEBOOK_DOC, PROPERTIES_KEY);
-      await setDoc(ref, { properties });
+      if (!id) return null;
+      const db = await waitForDb();
+      const { doc, getDoc } = await import(FIRESTORE_SRC);
+      const ref = doc(db, 'properties', id);
+      const snap = await getDoc(ref);
+      return snap.exists() ? { id: snap.id, ...snap.data() } : null;
     } catch (e) {
-      console.error('Error saving properties:', e);
-      throw new Error('Failed to save.');
-    }
-  }
-
-  /**
-   * Get the active property ID
-   * @returns {string|null} Active property ID
-   */
-  async function getActivePropertyId() {
-    try {
-      if (!window.db) {
-        console.warn('getActivePropertyId: Firebase not initialized (window.db is falsy)');
-        return null;
-      }
-      const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-      const snap = await getDoc(doc(window.db, GUIDEBOOK_DOC, ACTIVE_KEY));
-      return snap && snap.exists() ? snap.data().id : null;
-    } catch (e) {
+      console.error('getPropertyById error:', e);
       return null;
     }
   }
 
-  /**
-   * Set the active property ID
-   * @param {string} id - Property ID to activate
-   */
-  async function setActivePropertyId(id) {
-    if (!window.db) throw new Error('Firebase not initialized');
-    const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-    await setDoc(doc(window.db, GUIDEBOOK_DOC, ACTIVE_KEY), { id });
-  }
-
-  /**
-   * Get the currently active property object
-   * @returns {Object|null} Active property or null
-   */
-  async function getActiveProperty() {
-    const properties = await getProperties();
-    const activeId = await getActivePropertyId();
-    if (activeId) {
-      const found = properties.find(p => p.id === activeId);
-      if (found) return found;
-    }
-    if (properties.length > 0) {
-      await setActivePropertyId(properties[0].id);
-      return properties[0];
-    }
-    return null;
-  }
-
-  /**
-   * Get a property by its ID
-   * @param {string} id - Property ID
-   * @returns {Object|null} Property object or null
-   */
-  async function getPropertyById(id) {
-    const properties = await getProperties();
-    return properties.find(p => p.id === id) || null;
-  }
-
-  /**
-   * Create a new property and add it to the array
-   * @param {string} name - Property name (optional)
-   * @returns {Object} The newly created property
-   */
   async function createProperty(name) {
-    const properties = await getProperties();
-    const newProp = getDefaultProperty();
-    newProp.name = name || 'New Property';
-    properties.push(newProp);
-    await saveProperties(properties);
-    await setActivePropertyId(newProp.id);
-    return newProp;
-  }
-
-  /**
-   * Update an existing property by ID
-   * @param {string} id - Property ID
-   * @param {Object} updates - Partial property object with updates
-   * @returns {Object|null} Updated property or null
-   */
-  async function updateProperty(id, updates) {
-    const properties = await getProperties();
-    const index = properties.findIndex(p => p.id === id);
-    if (index === -1) return null;
-    properties[index] = { ...properties[index], ...updates, id };
-    await saveProperties(properties);
-    return properties[index];
-  }
-
-  /**
-   * Delete a property by ID
-   * @param {string} id - Property ID to delete
-   */
-  async function deleteProperty(id) {
-    let properties = await getProperties();
-    properties = properties.filter(p => p.id !== id);
-    await saveProperties(properties);
-    const activeId = await getActivePropertyId();
-    if (activeId === id) {
-      if (properties.length > 0) {
-        await setActivePropertyId(properties[0].id);
-      } else {
-        const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-        await setDoc(doc(window.db, GUIDEBOOK_DOC, ACTIVE_KEY), { id: null });
-      }
+    try {
+      const db = await waitForDb();
+      const { collection, doc, setDoc } = await import(FIRESTORE_SRC);
+      const col = collection(db, 'properties');
+      const ref = doc(col); // auto-id
+      const newProp = getDefaultProperty();
+      newProp.name = name || 'New Property';
+      newProp.createdAt = new Date().toISOString();
+      await setDoc(ref, newProp);
+      // ensure selected property points to this one
+      await setActivePropertyId(ref.id);
+      return { id: ref.id, ...newProp };
+    } catch (e) {
+      console.error('createProperty error:', e);
+      throw e;
     }
   }
 
-  /* ========== Feedback CRUD ========== */
-
-  /**
-   * Get all feedback entries
-   * @returns {Array} Array of feedback objects
-   */
-  async function getFeedback() {
+  async function updateProperty(id, updates) {
     try {
-      if (!window.db) {
-        console.warn('getFeedback: Firebase not initialized (window.db is falsy)');
-        return [];
-      }
-      const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-      const snap = await getDoc(doc(window.db, GUIDEBOOK_DOC, FEEDBACK_KEY));
-      return snap && snap.exists() ? snap.data().feedback || [] : [];
+      if (!id) throw new Error('Missing property id');
+      const db = await waitForDb();
+      const { doc, setDoc, getDoc } = await import(FIRESTORE_SRC);
+      const ref = doc(db, 'properties', id);
+      await setDoc(ref, { ...updates, updatedAt: new Date().toISOString() }, { merge: true });
+      const snap = await getDoc(ref);
+      return { id: snap.id, ...snap.data() };
     } catch (e) {
-      console.error('Error reading feedback:', e);
+      console.error('updateProperty error:', e);
+      throw e;
+    }
+  }
+
+  async function deleteProperty(id) {
+    try {
+      if (!id) throw new Error('Missing property id');
+      const db = await waitForDb();
+      const { doc, deleteDoc, getDocs, collection } = await import(FIRESTORE_SRC);
+      await deleteDoc(doc(db, 'properties', id));
+      // if deleted property was active, pick another or clear
+      const activeId = await getActivePropertyId();
+      if (activeId === id) {
+        const snaps = await getDocs(collection(db, 'properties'));
+        if (snaps.docs.length > 0) {
+          await setActivePropertyId(snaps.docs[0].id);
+        } else {
+          await setActivePropertyId(null);
+        }
+      }
+    } catch (e) {
+      console.error('deleteProperty error:', e);
+      throw e;
+    }
+  }
+
+  /* Active property tracking (stored in a small settings doc) */
+  async function getActivePropertyId() {
+    try {
+      const db = await waitForDb();
+      const { doc, getDoc } = await import(FIRESTORE_SRC);
+      const snap = await getDoc(doc(db, 'settings', 'selectedProperty'));
+      return snap && snap.exists() ? snap.data().id : null;
+    } catch (e) {
+      console.error('getActivePropertyId error:', e);
+      return null;
+    }
+  }
+
+  async function setActivePropertyId(id) {
+    try {
+      const db = await waitForDb();
+      const { doc, setDoc } = await import(FIRESTORE_SRC);
+      await setDoc(doc(db, 'settings', 'selectedProperty'), { id: id || null });
+    } catch (e) {
+      console.error('setActivePropertyId error:', e);
+      throw e;
+    }
+  }
+
+  async function getActiveProperty() {
+    try {
+      const id = await getActivePropertyId();
+      if (id) {
+        const prop = await getPropertyById(id);
+        if (prop) return prop;
+      }
+      const all = await getAllProperties();
+      if (all.length > 0) {
+        await setActivePropertyId(all[0].id);
+        return all[0];
+      }
+      return null;
+    } catch (e) {
+      console.error('getActiveProperty error:', e);
+      return null;
+    }
+  }
+
+  /* Feedback stored on each property document as `feedback: [{text,date,...}]` */
+  async function getFeedback(propertyId) {
+    try {
+      if (!propertyId) {
+        propertyId = await getActivePropertyId();
+      }
+      const prop = await getPropertyById(propertyId);
+      return prop ? (prop.feedback || []) : [];
+    } catch (e) {
+      console.error('getFeedback error:', e);
       return [];
     }
   }
 
-  /**
-   * Add a new feedback entry
-   * @param {Object} entry - Feedback object { name, comment }
-   */
-  async function addFeedback(entry) {
-    const feedback = await getFeedback();
-    feedback.unshift({
-      id: 'fb_' + Date.now(),
-      name: entry.name || 'Anonymous Guest',
-      comment: entry.comment,
-      date: new Date().toISOString()
-    });
-    if (!window.db) throw new Error('Firebase not initialized');
-    const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-    await setDoc(doc(window.db, GUIDEBOOK_DOC, FEEDBACK_KEY), { feedback });
-  }
-
-  /**
-   * Clear all feedback entries
-   */
-  async function clearFeedback() {
-    if (!window.db) throw new Error('Firebase not initialized');
-    const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-    await setDoc(doc(window.db, GUIDEBOOK_DOC, FEEDBACK_KEY), { feedback: [] });
-  }
-
-  /* ========== Theme ========== */
-
-  /**
-   * Get the saved theme preference
-   * @returns {string} 'light' or 'dark'
-   */
-  async function getTheme() {
+  async function addFeedback(propertyId, entry) {
     try {
-      if (!window.db) {
-        console.warn('getTheme: Firebase not initialized (window.db is falsy)');
-        return 'light';
-      }
-      const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-      const snap = await getDoc(doc(window.db, GUIDEBOOK_DOC, THEME_KEY));
-      return snap && snap.exists() ? snap.data().theme : 'light';
-    } catch {
-      return 'light';
+      if (!propertyId) propertyId = await getActivePropertyId();
+      const prop = await getPropertyById(propertyId);
+      const feedback = prop ? (prop.feedback || []) : [];
+      feedback.unshift({ id: 'fb_' + Date.now(), name: entry.name || 'Guest', text: entry.text || entry.comment || '', date: new Date().toISOString() });
+      await updateProperty(propertyId, { feedback });
+      return feedback;
+    } catch (e) {
+      console.error('addFeedback error:', e);
+      throw e;
     }
   }
 
-  /**
-   * Save theme preference
-   * @param {string} theme - 'light' or 'dark'
-   */
-  async function setTheme(theme) {
-    if (!window.db) throw new Error('Firebase not initialized');
-    const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-    await setDoc(doc(window.db, GUIDEBOOK_DOC, THEME_KEY), { theme });
+  async function clearFeedback(propertyId) {
+    try {
+      if (!propertyId) propertyId = await getActivePropertyId();
+      await updateProperty(propertyId, { feedback: [] });
+    } catch (e) {
+      console.error('clearFeedback error:', e);
+      throw e;
+    }
   }
 
   // Public API
   return {
-    getProperties,
-    saveProperties,
-    getActivePropertyId,
-    setActivePropertyId,
-    getActiveProperty,
+    waitForDb,
+    getAllProperties,
     getPropertyById,
     createProperty,
     updateProperty,
     deleteProperty,
     getDefaultProperty,
+    getActivePropertyId,
+    setActivePropertyId,
+    getActiveProperty,
     getFeedback,
     addFeedback,
-    clearFeedback,
-    getTheme,
-    setTheme
+    clearFeedback
   };
 })();
