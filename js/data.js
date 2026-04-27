@@ -1,14 +1,15 @@
 /**
  * data.js — Guidebook Data Management Module
- * Handles all localStorage CRUD operations for properties and feedback.
+ * Handles all Firestore CRUD operations for properties and feedback.
  */
 
 const GuidebookData = (() => {
-  // localStorage keys
-  const PROPERTIES_KEY = 'guidebook_properties';
-  const ACTIVE_KEY = 'guidebook_active_property';
-  const FEEDBACK_KEY = 'guidebook_feedback';
-  const THEME_KEY = 'guidebook_theme';
+  // Firestore collection and doc names
+  const GUIDEBOOK_DOC = 'guidebook';
+  const PROPERTIES_KEY = 'properties';
+  const ACTIVE_KEY = 'active_property';
+  const FEEDBACK_KEY = 'feedback';
+  const THEME_KEY = 'theme';
 
   /**
    * Generate a unique ID for new properties
@@ -44,10 +45,11 @@ const GuidebookData = (() => {
    * Get all stored properties
    * @returns {Array} Array of property objects
    */
-  function getProperties() {
+  async function getProperties() {
     try {
-      const data = localStorage.getItem(PROPERTIES_KEY);
-      return data ? JSON.parse(data) : [];
+      const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
+      const snap = await getDoc(window.db ? doc(window.db, GUIDEBOOK_DOC, PROPERTIES_KEY) : null);
+      return snap && snap.exists() ? snap.data().properties || [] : [];
     } catch (e) {
       console.error('Error reading properties:', e);
       return [];
@@ -58,12 +60,13 @@ const GuidebookData = (() => {
    * Save the entire properties array to localStorage
    * @param {Array} properties - Array of property objects
    */
-  function saveProperties(properties) {
+  async function saveProperties(properties) {
     try {
-      localStorage.setItem(PROPERTIES_KEY, JSON.stringify(properties));
+      const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
+      await setDoc(doc(window.db, GUIDEBOOK_DOC, PROPERTIES_KEY), { properties });
     } catch (e) {
       console.error('Error saving properties:', e);
-      throw new Error('Failed to save. Storage may be full.');
+      throw new Error('Failed to save.');
     }
   }
 
@@ -71,37 +74,40 @@ const GuidebookData = (() => {
    * Get the active property ID
    * @returns {string|null} Active property ID
    */
-  function getActivePropertyId() {
-    return localStorage.getItem(ACTIVE_KEY);
+  async function getActivePropertyId() {
+    try {
+      const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
+      const snap = await getDoc(window.db ? doc(window.db, GUIDEBOOK_DOC, ACTIVE_KEY) : null);
+      return snap && snap.exists() ? snap.data().id : null;
+    } catch (e) {
+      return null;
+    }
   }
 
   /**
    * Set the active property ID
    * @param {string} id - Property ID to activate
    */
-  function setActivePropertyId(id) {
-    localStorage.setItem(ACTIVE_KEY, id);
+  async function setActivePropertyId(id) {
+    const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
+    await setDoc(doc(window.db, GUIDEBOOK_DOC, ACTIVE_KEY), { id });
   }
 
   /**
    * Get the currently active property object
    * @returns {Object|null} Active property or null
    */
-  function getActiveProperty() {
-    const properties = getProperties();
-    const activeId = getActivePropertyId();
-
+  async function getActiveProperty() {
+    const properties = await getProperties();
+    const activeId = await getActivePropertyId();
     if (activeId) {
       const found = properties.find(p => p.id === activeId);
       if (found) return found;
     }
-
-    // Fallback to first property if active ID is invalid
     if (properties.length > 0) {
-      setActivePropertyId(properties[0].id);
+      await setActivePropertyId(properties[0].id);
       return properties[0];
     }
-
     return null;
   }
 
@@ -110,8 +116,8 @@ const GuidebookData = (() => {
    * @param {string} id - Property ID
    * @returns {Object|null} Property object or null
    */
-  function getPropertyById(id) {
-    const properties = getProperties();
+  async function getPropertyById(id) {
+    const properties = await getProperties();
     return properties.find(p => p.id === id) || null;
   }
 
@@ -120,13 +126,13 @@ const GuidebookData = (() => {
    * @param {string} name - Property name (optional)
    * @returns {Object} The newly created property
    */
-  function createProperty(name) {
-    const properties = getProperties();
+  async function createProperty(name) {
+    const properties = await getProperties();
     const newProp = getDefaultProperty();
     newProp.name = name || 'New Property';
     properties.push(newProp);
-    saveProperties(properties);
-    setActivePropertyId(newProp.id);
+    await saveProperties(properties);
+    await setActivePropertyId(newProp.id);
     return newProp;
   }
 
@@ -136,13 +142,12 @@ const GuidebookData = (() => {
    * @param {Object} updates - Partial property object with updates
    * @returns {Object|null} Updated property or null
    */
-  function updateProperty(id, updates) {
-    const properties = getProperties();
+  async function updateProperty(id, updates) {
+    const properties = await getProperties();
     const index = properties.findIndex(p => p.id === id);
     if (index === -1) return null;
-
     properties[index] = { ...properties[index], ...updates, id };
-    saveProperties(properties);
+    await saveProperties(properties);
     return properties[index];
   }
 
@@ -150,17 +155,17 @@ const GuidebookData = (() => {
    * Delete a property by ID
    * @param {string} id - Property ID to delete
    */
-  function deleteProperty(id) {
-    let properties = getProperties();
+  async function deleteProperty(id) {
+    let properties = await getProperties();
     properties = properties.filter(p => p.id !== id);
-    saveProperties(properties);
-
-    // Update active property if the deleted one was active
-    if (getActivePropertyId() === id) {
+    await saveProperties(properties);
+    const activeId = await getActivePropertyId();
+    if (activeId === id) {
       if (properties.length > 0) {
-        setActivePropertyId(properties[0].id);
+        await setActivePropertyId(properties[0].id);
       } else {
-        localStorage.removeItem(ACTIVE_KEY);
+        const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
+        await setDoc(doc(window.db, GUIDEBOOK_DOC, ACTIVE_KEY), { id: null });
       }
     }
   }
@@ -171,10 +176,11 @@ const GuidebookData = (() => {
    * Get all feedback entries
    * @returns {Array} Array of feedback objects
    */
-  function getFeedback() {
+  async function getFeedback() {
     try {
-      const data = localStorage.getItem(FEEDBACK_KEY);
-      return data ? JSON.parse(data) : [];
+      const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
+      const snap = await getDoc(window.db ? doc(window.db, GUIDEBOOK_DOC, FEEDBACK_KEY) : null);
+      return snap && snap.exists() ? snap.data().feedback || [] : [];
     } catch (e) {
       console.error('Error reading feedback:', e);
       return [];
@@ -185,22 +191,24 @@ const GuidebookData = (() => {
    * Add a new feedback entry
    * @param {Object} entry - Feedback object { name, comment }
    */
-  function addFeedback(entry) {
-    const feedback = getFeedback();
+  async function addFeedback(entry) {
+    const feedback = await getFeedback();
     feedback.unshift({
       id: 'fb_' + Date.now(),
       name: entry.name || 'Anonymous Guest',
       comment: entry.comment,
       date: new Date().toISOString()
     });
-    localStorage.setItem(FEEDBACK_KEY, JSON.stringify(feedback));
+    const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
+    await setDoc(doc(window.db, GUIDEBOOK_DOC, FEEDBACK_KEY), { feedback });
   }
 
   /**
    * Clear all feedback entries
    */
-  function clearFeedback() {
-    localStorage.setItem(FEEDBACK_KEY, '[]');
+  async function clearFeedback() {
+    const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
+    await setDoc(doc(window.db, GUIDEBOOK_DOC, FEEDBACK_KEY), { feedback: [] });
   }
 
   /* ========== Theme ========== */
@@ -209,16 +217,23 @@ const GuidebookData = (() => {
    * Get the saved theme preference
    * @returns {string} 'light' or 'dark'
    */
-  function getTheme() {
-    return localStorage.getItem(THEME_KEY) || 'light';
+  async function getTheme() {
+    try {
+      const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
+      const snap = await getDoc(window.db ? doc(window.db, GUIDEBOOK_DOC, THEME_KEY) : null);
+      return snap && snap.exists() ? snap.data().theme : 'light';
+    } catch {
+      return 'light';
+    }
   }
 
   /**
    * Save theme preference
    * @param {string} theme - 'light' or 'dark'
    */
-  function setTheme(theme) {
-    localStorage.setItem(THEME_KEY, theme);
+  async function setTheme(theme) {
+    const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
+    await setDoc(doc(window.db, GUIDEBOOK_DOC, THEME_KEY), { theme });
   }
 
   // Public API

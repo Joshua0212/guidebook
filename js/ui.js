@@ -35,9 +35,9 @@ const GuidebookUI = (() => {
   /**
    * Render the top navigation bar and side drawer
    */
-  function renderNavigation() {
+  async function renderNavigation() {
     const currentPage = getCurrentPage();
-    const property = GuidebookData.getActiveProperty();
+    const property = await GuidebookData.getActiveProperty();
     const brandName = property ? property.name : 'Guidebook';
 
     // Top Nav
@@ -333,15 +333,13 @@ const GuidebookUI = (() => {
    * Initialize a guest page — renders nav, theme, and loads property data
    * @param {Function} renderFn - Page-specific render function
    */
-  function initGuestPage(renderFn) {
-    initTheme();
-    renderNavigation();
-
-    const property = GuidebookData.getActiveProperty();
+  async function initGuestPage(renderFn) {
+    await initTheme();
+    await renderNavigation();
+    const property = await GuidebookData.getActiveProperty();
     if (property && renderFn) {
       renderFn(property);
     } else if (renderFn) {
-      // Call render with null to show empty state
       renderFn(null);
     }
   }

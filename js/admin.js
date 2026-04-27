@@ -12,12 +12,12 @@ const AdminPage = (() => {
   /**
    * Initialize the admin page
    */
-  function init() {
-    GuidebookUI.initTheme();
-    GuidebookUI.renderNavigation();
-    ensureAtLeastOneProperty();
-    loadPropertySelector();
-    loadDraft();
+  async function init() {
+    await GuidebookUI.initTheme();
+    await GuidebookUI.renderNavigation();
+    await ensureAtLeastOneProperty();
+    await loadPropertySelector();
+    await loadDraft();
     renderAllSections();
     bindEvents();
     updateSaveBarState();
@@ -26,21 +26,20 @@ const AdminPage = (() => {
   /**
    * Ensure there's at least one property; create a default if none exist
    */
-  function ensureAtLeastOneProperty() {
-    const properties = GuidebookData.getProperties();
+  async function ensureAtLeastOneProperty() {
+    const properties = await GuidebookData.getProperties();
     if (properties.length === 0) {
-      GuidebookData.createProperty('My Studio');
+      await GuidebookData.createProperty('My Studio');
     }
   }
 
   /**
    * Populate the property selector dropdown
    */
-  function loadPropertySelector() {
+  async function loadPropertySelector() {
     const select = document.getElementById('propertySelect');
-    const properties = GuidebookData.getProperties();
-    const activeId = GuidebookData.getActivePropertyId();
-
+    const properties = await GuidebookData.getProperties();
+    const activeId = await GuidebookData.getActivePropertyId();
     select.innerHTML = properties.map(p =>
       `<option value="${p.id}" ${p.id === activeId ? 'selected' : ''}>${GuidebookUI.escapeHtml(p.name) || 'Unnamed Property'}</option>`
     ).join('');
@@ -49,10 +48,9 @@ const AdminPage = (() => {
   /**
    * Load the active property data into the draft
    */
-  function loadDraft() {
-    const property = GuidebookData.getActiveProperty();
+  async function loadDraft() {
+    const property = await GuidebookData.getActiveProperty();
     if (property) {
-      // Deep clone to avoid mutating saved data before "Save"
       draft = JSON.parse(JSON.stringify(property));
     } else {
       draft = GuidebookData.getDefaultProperty();
@@ -513,21 +511,18 @@ const AdminPage = (() => {
 
   /* ========== Save ========== */
 
-  function saveProperty() {
+  async function saveProperty() {
     if (!draft.name || !draft.name.trim()) {
       GuidebookUI.showToast('Please enter a property name.', 'error');
       document.getElementById('propName').focus();
       return;
     }
-
     try {
-      GuidebookData.updateProperty(draft.id, draft);
+      await GuidebookData.updateProperty(draft.id, draft);
       hasChanges = false;
       updateSaveBarState();
-      loadPropertySelector();
+      await loadPropertySelector();
       GuidebookUI.showToast('Property saved successfully!', 'success');
-
-      // Update the nav brand name
       const brandSpan = document.querySelector('.nav-brand span');
       if (brandSpan) brandSpan.textContent = draft.name;
     } catch (e) {
