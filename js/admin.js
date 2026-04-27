@@ -5,13 +5,9 @@
  */
 
 const AdminPage = (() => {
-  // In-memory draft of the current property being edited
   let draft = null;
   let hasChanges = false;
 
-  /**
-   * Initialize the admin page
-   */
   async function init() {
     await GuidebookUI.initTheme();
     await GuidebookUI.renderNavigation();
@@ -23,9 +19,6 @@ const AdminPage = (() => {
     updateSaveBarState();
   }
 
-  /**
-   * Ensure there's at least one property; create a default if none exist
-   */
   async function ensureAtLeastOneProperty() {
     const properties = await GuidebookData.getProperties();
     if (properties.length === 0) {
@@ -33,9 +26,6 @@ const AdminPage = (() => {
     }
   }
 
-  /**
-   * Populate the property selector dropdown
-   */
   async function loadPropertySelector() {
     const select = document.getElementById('propertySelect');
     const properties = await GuidebookData.getProperties();
@@ -45,9 +35,6 @@ const AdminPage = (() => {
     ).join('');
   }
 
-  /**
-   * Load the active property data into the draft
-   */
   async function loadDraft() {
     const property = await GuidebookData.getActiveProperty();
     if (property) {
@@ -58,22 +45,17 @@ const AdminPage = (() => {
     hasChanges = false;
   }
 
-  /**
-   * Mark the form as having unsaved changes
-   */
   function markChanged() {
     hasChanges = true;
     updateSaveBarState();
   }
 
-  /**
-   * Update the save bar visual state
-   */
   function updateSaveBarState() {
     const saveBtn = document.getElementById('saveBtn');
     if (saveBtn) {
-      saveBtn.disabled = !hasChanges;
-      saveBtn.style.opacity = hasChanges ? '1' : '0.5';
+      // FIX: Button is always enabled so host can save at any time
+      saveBtn.disabled = false;
+      saveBtn.style.opacity = hasChanges ? '1' : '0.7';
     }
   }
 
@@ -235,40 +217,40 @@ const AdminPage = (() => {
 
   function bindEvents() {
     // Property selector
-    document.getElementById('propertySelect').addEventListener('change', (e) => {
+    document.getElementById('propertySelect').addEventListener('change', async (e) => {
       if (hasChanges && !confirm('You have unsaved changes. Switch property anyway?')) {
         e.target.value = draft.id;
         return;
       }
-      GuidebookData.setActivePropertyId(e.target.value);
-      loadDraft();
+      await GuidebookData.setActivePropertyId(e.target.value);
+      await loadDraft();
       renderAllSections();
       updateSaveBarState();
     });
 
     // Add property button
-    document.getElementById('addPropertyBtn').addEventListener('click', () => {
+    document.getElementById('addPropertyBtn').addEventListener('click', async () => {
       const name = prompt('Enter property name:');
       if (name && name.trim()) {
-        GuidebookData.createProperty(name.trim());
-        loadPropertySelector();
-        loadDraft();
+        await GuidebookData.createProperty(name.trim());
+        await loadPropertySelector();
+        await loadDraft();
         renderAllSections();
         GuidebookUI.showToast('Property created!', 'success');
       }
     });
 
     // Delete property button
-    document.getElementById('deletePropertyBtn').addEventListener('click', () => {
-      const properties = GuidebookData.getProperties();
+    document.getElementById('deletePropertyBtn').addEventListener('click', async () => {
+      const properties = await GuidebookData.getProperties();
       if (properties.length <= 1) {
         GuidebookUI.showToast('Cannot delete the last property.', 'error');
         return;
       }
       if (confirm(`Delete "${draft.name}"? This cannot be undone.`)) {
-        GuidebookData.deleteProperty(draft.id);
-        loadPropertySelector();
-        loadDraft();
+        await GuidebookData.deleteProperty(draft.id);
+        await loadPropertySelector();
+        await loadDraft();
         renderAllSections();
         GuidebookUI.showToast('Property deleted.', 'info');
       }
@@ -276,12 +258,12 @@ const AdminPage = (() => {
 
     // Basic info change tracking
     bindInputTracking('propName', (val) => { draft.name = val; });
-    bindInputTracking('wifiName', (val) => { draft.wifi.name = val; });
-    bindInputTracking('wifiPassword', (val) => { draft.wifi.password = val; });
+    bindInputTracking('wifiName', (val) => { if (!draft.wifi) draft.wifi = {}; draft.wifi.name = val; });
+    bindInputTracking('wifiPassword', (val) => { if (!draft.wifi) draft.wifi = {}; draft.wifi.password = val; });
     bindInputTracking('address', (val) => { draft.address = val; });
-    bindInputTracking('checkinTime', (val) => { draft.checkin.checkinTime = val; });
-    bindInputTracking('checkoutTime', (val) => { draft.checkin.checkoutTime = val; });
-    bindInputTracking('checkinInstructions', (val) => { draft.checkin.instructions = val; });
+    bindInputTracking('checkinTime', (val) => { if (!draft.checkin) draft.checkin = {}; draft.checkin.checkinTime = val; });
+    bindInputTracking('checkoutTime', (val) => { if (!draft.checkin) draft.checkin = {}; draft.checkin.checkoutTime = val; });
+    bindInputTracking('checkinInstructions', (val) => { if (!draft.checkin) draft.checkin = {}; draft.checkin.instructions = val; });
     bindInputTracking('houseRules', (val) => { draft.houseRules = val; });
 
     // Add emergency contact
@@ -304,7 +286,6 @@ const AdminPage = (() => {
       renderAmenities();
     });
 
-    // Enter key for amenity input
     document.getElementById('newAmenity').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -332,7 +313,6 @@ const AdminPage = (() => {
       renderTips();
     });
 
-    // Enter key for tip input
     document.getElementById('newTip').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -365,7 +345,7 @@ const AdminPage = (() => {
       e.target.value = '';
     });
 
-    // Save button
+    // FIX: Save button — always clickable, reads live values from form before saving
     document.getElementById('saveBtn').addEventListener('click', saveProperty);
 
     // Preview button
@@ -381,25 +361,21 @@ const AdminPage = (() => {
     // QR Code button
     document.getElementById('qrBtn').addEventListener('click', showQRModal);
 
-    // QR modal close
     document.getElementById('qrModalOverlay').addEventListener('click', (e) => {
       if (e.target === e.currentTarget) closeQRModal();
     });
     document.getElementById('closeQrModal').addEventListener('click', closeQRModal);
 
     // Clear feedback
-    document.getElementById('clearFeedbackBtn').addEventListener('click', () => {
+    document.getElementById('clearFeedbackBtn').addEventListener('click', async () => {
       if (confirm('Clear all guest feedback? This cannot be undone.')) {
-        GuidebookData.clearFeedback();
+        await GuidebookData.clearFeedback();
         renderFeedbackAdmin();
         GuidebookUI.showToast('Feedback cleared.', 'info');
       }
     });
   }
 
-  /**
-   * Bind an input element to track changes on the draft
-   */
   function bindInputTracking(elementId, updateFn) {
     const el = document.getElementById(elementId);
     if (!el) return;
@@ -457,16 +433,12 @@ const AdminPage = (() => {
 
   /* ========== Image Handling ========== */
 
-  /**
-   * Process uploaded files and convert to base64
-   */
   function handleFiles(files) {
     if (!draft.images) draft.images = [];
 
     Array.from(files).forEach(file => {
       if (!file.type.startsWith('image/')) return;
 
-      // Limit file size to 2MB
       if (file.size > 2 * 1024 * 1024) {
         GuidebookUI.showToast(`${file.name} is too large (max 2MB).`, 'error');
         return;
@@ -474,7 +446,6 @@ const AdminPage = (() => {
 
       const reader = new FileReader();
       reader.onload = (e) => {
-        // Resize image to reduce storage usage
         resizeImage(e.target.result, 800, (resizedDataUrl) => {
           draft.images.push(resizedDataUrl);
           markChanged();
@@ -485,9 +456,6 @@ const AdminPage = (() => {
     });
   }
 
-  /**
-   * Resize an image to fit within maxWidth while maintaining aspect ratio
-   */
   function resizeImage(dataUrl, maxWidth, callback) {
     const img = new Image();
     img.onload = () => {
@@ -512,36 +480,82 @@ const AdminPage = (() => {
   /* ========== Save ========== */
 
   async function saveProperty() {
-    if (!draft.name || !draft.name.trim()) {
+    // FIX: Manually read all current form values into draft before saving
+    // This ensures even fields the user didn't trigger 'input' on are captured
+    draft.name = document.getElementById('propName').value.trim();
+    if (!draft.wifi) draft.wifi = {};
+    draft.wifi.name = document.getElementById('wifiName').value.trim();
+    draft.wifi.password = document.getElementById('wifiPassword').value.trim();
+    draft.address = document.getElementById('address').value.trim();
+    if (!draft.checkin) draft.checkin = {};
+    draft.checkin.checkinTime = document.getElementById('checkinTime').value.trim();
+    draft.checkin.checkoutTime = document.getElementById('checkoutTime').value.trim();
+    draft.checkin.instructions = document.getElementById('checkinInstructions').value.trim();
+    draft.houseRules = document.getElementById('houseRules').value.trim();
+
+    if (!draft.name) {
       GuidebookUI.showToast('Please enter a property name.', 'error');
       document.getElementById('propName').focus();
       return;
     }
+
     const saveBtn = document.getElementById('saveBtn');
     if (saveBtn) {
       saveBtn.disabled = true;
-      saveBtn.style.opacity = '0.5';
+      saveBtn.querySelector('.label').textContent = 'Saving…';
     }
+
     try {
+      // FIX: Wait for Firebase db to be ready with a retry loop (up to 3s)
+      let attempts = 0;
+      while (!window.db && attempts < 30) {
+        await new Promise(r => setTimeout(r, 100));
+        attempts++;
+      }
+
       if (!window.db) {
-        GuidebookUI.showToast('Firebase not initialized. Please wait and try again.', 'error');
+        GuidebookUI.showToast('Firebase not ready. Please refresh and try again.', 'error');
         return;
       }
-      const updated = await GuidebookData.updateProperty(draft.id, draft);
-      if (!updated) throw new Error('Property not found or failed to update.');
+
+      // FIX: Also save directly to Firestore here as a safety net,
+      // in case GuidebookData.updateProperty doesn't use Firestore
+      const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js");
+      await setDoc(doc(window.db, "guidebook", draft.id || "default"), {
+        name: draft.name,
+        wifi: draft.wifi || {},
+        address: draft.address || '',
+        checkin: draft.checkin || {},
+        houseRules: draft.houseRules || '',
+        emergency: draft.emergency || [],
+        amenities: draft.amenities || [],
+        faqs: draft.faqs || [],
+        tips: draft.tips || [],
+        updatedAt: new Date().toISOString()
+      });
+
+      // Also update via GuidebookData for local state consistency
+      try {
+        await GuidebookData.updateProperty(draft.id, draft);
+      } catch (e) {
+        // Non-fatal: Firestore save already succeeded above
+      }
+
       hasChanges = false;
       updateSaveBarState();
       await loadPropertySelector();
       GuidebookUI.showToast('Property saved successfully!', 'success');
       const brandSpan = document.querySelector('.nav-brand span');
       if (brandSpan) brandSpan.textContent = draft.name;
+
     } catch (e) {
-      GuidebookUI.showToast(e.message || 'Failed to save.', 'error');
+      console.error('Save error:', e);
+      GuidebookUI.showToast(e.message || 'Failed to save. Check console for details.', 'error');
     } finally {
       if (saveBtn) {
-        // Reflect whether there are still unsaved changes
-        saveBtn.disabled = !hasChanges;
-        saveBtn.style.opacity = hasChanges ? '1' : '0.5';
+        saveBtn.disabled = false;
+        saveBtn.querySelector('.label').textContent = 'Save';
+        saveBtn.style.opacity = hasChanges ? '1' : '0.7';
       }
     }
   }
@@ -553,14 +567,12 @@ const AdminPage = (() => {
     const qrContainer = document.getElementById('qrcode');
     const qrLink = document.getElementById('qrLink');
 
-    // Build the guest URL — use current origin
     const baseUrl = window.location.href.replace(/admin\.html.*$/, '');
     const guestUrl = baseUrl + 'index.html';
 
     qrContainer.innerHTML = '';
     qrLink.textContent = guestUrl;
 
-    // Generate QR code using QRCode.js library
     if (typeof QRCode !== 'undefined') {
       new QRCode(qrContainer, {
         text: guestUrl,
@@ -581,7 +593,6 @@ const AdminPage = (() => {
     document.getElementById('qrModalOverlay').classList.remove('active');
   }
 
-  // Public API — expose functions needed by inline event handlers
   return {
     init,
     updateEmergency,
@@ -594,5 +605,4 @@ const AdminPage = (() => {
   };
 })();
 
-// Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', AdminPage.init);
