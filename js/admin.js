@@ -211,11 +211,11 @@ const AdminPage = (() => {
     `).join('');
   }
 
-  function renderFeedbackAdmin() {
+  async function renderFeedbackAdmin() {
     const container = document.getElementById('feedbackAdminList');
-    const feedback = GuidebookData.getFeedback();
+    const feedback = await GuidebookData.getFeedback();
 
-    if (feedback.length === 0) {
+    if (!feedback || feedback.length === 0) {
       container.innerHTML = '<p class="form-hint">No feedback received yet.</p>';
       return;
     }
@@ -517,8 +517,18 @@ const AdminPage = (() => {
       document.getElementById('propName').focus();
       return;
     }
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.style.opacity = '0.5';
+    }
     try {
-      await GuidebookData.updateProperty(draft.id, draft);
+      if (!window.db) {
+        GuidebookUI.showToast('Firebase not initialized. Please wait and try again.', 'error');
+        return;
+      }
+      const updated = await GuidebookData.updateProperty(draft.id, draft);
+      if (!updated) throw new Error('Property not found or failed to update.');
       hasChanges = false;
       updateSaveBarState();
       await loadPropertySelector();
@@ -527,6 +537,12 @@ const AdminPage = (() => {
       if (brandSpan) brandSpan.textContent = draft.name;
     } catch (e) {
       GuidebookUI.showToast(e.message || 'Failed to save.', 'error');
+    } finally {
+      if (saveBtn) {
+        // Reflect whether there are still unsaved changes
+        saveBtn.disabled = !hasChanges;
+        saveBtn.style.opacity = hasChanges ? '1' : '0.5';
+      }
     }
   }
 

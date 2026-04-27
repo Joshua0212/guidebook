@@ -47,8 +47,13 @@ const GuidebookData = (() => {
    */
   async function getProperties() {
     try {
+      if (!window.db) {
+        console.warn('getProperties: Firebase not initialized (window.db is falsy)');
+        return [];
+      }
       const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-      const snap = await getDoc(window.db ? doc(window.db, GUIDEBOOK_DOC, PROPERTIES_KEY) : null);
+      const ref = doc(window.db, GUIDEBOOK_DOC, PROPERTIES_KEY);
+      const snap = await getDoc(ref);
       return snap && snap.exists() ? snap.data().properties || [] : [];
     } catch (e) {
       console.error('Error reading properties:', e);
@@ -62,8 +67,10 @@ const GuidebookData = (() => {
    */
   async function saveProperties(properties) {
     try {
+      if (!window.db) throw new Error('Firebase not initialized');
       const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-      await setDoc(doc(window.db, GUIDEBOOK_DOC, PROPERTIES_KEY), { properties });
+      const ref = doc(window.db, GUIDEBOOK_DOC, PROPERTIES_KEY);
+      await setDoc(ref, { properties });
     } catch (e) {
       console.error('Error saving properties:', e);
       throw new Error('Failed to save.');
@@ -76,8 +83,12 @@ const GuidebookData = (() => {
    */
   async function getActivePropertyId() {
     try {
+      if (!window.db) {
+        console.warn('getActivePropertyId: Firebase not initialized (window.db is falsy)');
+        return null;
+      }
       const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-      const snap = await getDoc(window.db ? doc(window.db, GUIDEBOOK_DOC, ACTIVE_KEY) : null);
+      const snap = await getDoc(doc(window.db, GUIDEBOOK_DOC, ACTIVE_KEY));
       return snap && snap.exists() ? snap.data().id : null;
     } catch (e) {
       return null;
@@ -89,6 +100,7 @@ const GuidebookData = (() => {
    * @param {string} id - Property ID to activate
    */
   async function setActivePropertyId(id) {
+    if (!window.db) throw new Error('Firebase not initialized');
     const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
     await setDoc(doc(window.db, GUIDEBOOK_DOC, ACTIVE_KEY), { id });
   }
@@ -178,8 +190,12 @@ const GuidebookData = (() => {
    */
   async function getFeedback() {
     try {
+      if (!window.db) {
+        console.warn('getFeedback: Firebase not initialized (window.db is falsy)');
+        return [];
+      }
       const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-      const snap = await getDoc(window.db ? doc(window.db, GUIDEBOOK_DOC, FEEDBACK_KEY) : null);
+      const snap = await getDoc(doc(window.db, GUIDEBOOK_DOC, FEEDBACK_KEY));
       return snap && snap.exists() ? snap.data().feedback || [] : [];
     } catch (e) {
       console.error('Error reading feedback:', e);
@@ -199,6 +215,7 @@ const GuidebookData = (() => {
       comment: entry.comment,
       date: new Date().toISOString()
     });
+    if (!window.db) throw new Error('Firebase not initialized');
     const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
     await setDoc(doc(window.db, GUIDEBOOK_DOC, FEEDBACK_KEY), { feedback });
   }
@@ -207,6 +224,7 @@ const GuidebookData = (() => {
    * Clear all feedback entries
    */
   async function clearFeedback() {
+    if (!window.db) throw new Error('Firebase not initialized');
     const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
     await setDoc(doc(window.db, GUIDEBOOK_DOC, FEEDBACK_KEY), { feedback: [] });
   }
@@ -219,8 +237,12 @@ const GuidebookData = (() => {
    */
   async function getTheme() {
     try {
+      if (!window.db) {
+        console.warn('getTheme: Firebase not initialized (window.db is falsy)');
+        return 'light';
+      }
       const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
-      const snap = await getDoc(window.db ? doc(window.db, GUIDEBOOK_DOC, THEME_KEY) : null);
+      const snap = await getDoc(doc(window.db, GUIDEBOOK_DOC, THEME_KEY));
       return snap && snap.exists() ? snap.data().theme : 'light';
     } catch {
       return 'light';
@@ -232,6 +254,7 @@ const GuidebookData = (() => {
    * @param {string} theme - 'light' or 'dark'
    */
   async function setTheme(theme) {
+    if (!window.db) throw new Error('Firebase not initialized');
     const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js');
     await setDoc(doc(window.db, GUIDEBOOK_DOC, THEME_KEY), { theme });
   }
