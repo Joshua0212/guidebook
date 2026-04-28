@@ -1,7 +1,7 @@
 // js/firebase.js — Centralized Firebase initialization
 // Single source of truth for Firebase config to avoid duplicated init across pages (BUG 1 & 7)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+import { getFirestore, enableMultiTabIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 
 // Centralized Firebase initialization using provided project config
@@ -16,9 +16,18 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-window.db = getFirestore(app);
+const db = getFirestore(app);
 
-// Try anonymous sign-in to satisfy rules that require auth (development convenience)
+// Enable offline persistence for instantaneous local saving
+enableMultiTabIndexedDbPersistence(db).catch((err) => {
+  if (err.code === 'failed-precondition') {
+    console.warn('Firestore persistence failed: Multiple tabs open');
+  } else if (err.code === 'unimplemented') {
+    console.warn('Firestore persistence not supported by browser');
+  }
+});
+
+window.db = db;
 const auth = getAuth(app);
 signInAnonymously(auth).then(() => {
   console.log('Firebase: signed in anonymously');
