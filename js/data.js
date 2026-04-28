@@ -6,7 +6,7 @@
  */
 
 const GuidebookData = (() => {
-  const FIRESTORE_SRC = 'https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js';
+  const FIRESTORE_SRC = 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 
   function generateId() {
     return 'prop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
@@ -217,6 +217,36 @@ const GuidebookData = (() => {
     }
   }
 
+  /**
+   * Get theme preference synchronously (fallback to localStorage or 'light')
+   * This keeps compatibility with UI code that expects a synchronous getter.
+   */
+  function getTheme() {
+    try {
+      const t = localStorage.getItem('guidebookTheme');
+      return t || 'light';
+    } catch (e) {
+      return 'light';
+    }
+  }
+
+  /**
+   * Set theme preference locally and persist to Firestore when available
+   */
+  async function setTheme(theme) {
+    try {
+      localStorage.setItem('guidebookTheme', theme);
+      // Persist to Firestore settings doc if db available
+      if (window.db) {
+        const db = await waitForDb();
+        const { doc, setDoc } = await import(FIRESTORE_SRC);
+        await setDoc(doc(db, 'settings', 'theme'), { theme });
+      }
+    } catch (e) {
+      console.error('setTheme error:', e);
+    }
+  }
+
   // Public API
   return {
     waitForDb,
@@ -232,5 +262,6 @@ const GuidebookData = (() => {
     getFeedback,
     addFeedback,
     clearFeedback
+    ,getTheme,setTheme
   };
 })();

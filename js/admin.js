@@ -225,8 +225,11 @@ const AdminPage = (() => {
   /* ========== Event Bindings ========== */
 
   function bindEvents() {
+    console.log('AdminPage.bindEvents: attaching listeners');
     // Property selector
-    document.getElementById('propertySelect').addEventListener('change', async (e) => {
+    const propSelect = document.getElementById('propertySelect');
+    if (propSelect) {
+      propSelect.addEventListener('change', async (e) => {
       if (hasChanges && !confirm('You have unsaved changes. Switch property anyway?')) {
         e.target.value = draft.id;
         return;
@@ -235,10 +238,13 @@ const AdminPage = (() => {
       await loadDraft();
       renderAllSections();
       updateSaveBarState();
-    });
+      });
+    } else console.warn('AdminPage.bindEvents: #propertySelect not found');
 
     // Add property button
-    document.getElementById('addPropertyBtn').addEventListener('click', async () => {
+    const addPropBtn = document.getElementById('addPropertyBtn');
+    if (addPropBtn) {
+      addPropBtn.addEventListener('click', async () => {
       const name = prompt('Enter property name:');
       if (name && name.trim()) {
         await GuidebookData.createProperty(name.trim());
@@ -247,28 +253,32 @@ const AdminPage = (() => {
         renderAllSections();
         GuidebookUI.showToast('Property created!', 'success');
       }
-    });
+      });
+    } else console.warn('AdminPage.bindEvents: #addPropertyBtn not found');
 
     // Delete property button
-    document.getElementById('deletePropertyBtn').addEventListener('click', async () => {
-      const properties = await GuidebookData.getAllProperties();
-      if (properties.length <= 1) {
-        GuidebookUI.showToast('Cannot delete the last property.', 'error');
-        return;
-      }
-      if (confirm(`Delete "${draft.name}"? This cannot be undone.`)) {
-        try {
-          await GuidebookData.deleteProperty(draft.id);
-        } catch (e) {
-          alert('Failed to delete property: ' + (e.message || e));
+    const delPropBtn = document.getElementById('deletePropertyBtn');
+    if (delPropBtn) {
+      delPropBtn.addEventListener('click', async () => {
+        const properties = await GuidebookData.getAllProperties();
+        if (properties.length <= 1) {
+          GuidebookUI.showToast('Cannot delete the last property.', 'error');
           return;
         }
-        await loadPropertySelector();
-        await loadDraft();
-        renderAllSections();
-        GuidebookUI.showToast('Property deleted.', 'info');
-      }
-    });
+        if (confirm(`Delete "${draft.name}"? This cannot be undone.`)) {
+          try {
+            await GuidebookData.deleteProperty(draft.id);
+          } catch (e) {
+            alert('Failed to delete property: ' + (e.message || e));
+            return;
+          }
+          await loadPropertySelector();
+          await loadDraft();
+          renderAllSections();
+          GuidebookUI.showToast('Property deleted.', 'info');
+        }
+      });
+    } else console.warn('AdminPage.bindEvents: #deletePropertyBtn not found');
 
     // Basic info change tracking
     bindInputTracking('propName', (val) => { draft.name = val; });
@@ -281,15 +291,20 @@ const AdminPage = (() => {
     bindInputTracking('houseRules', (val) => { draft.houseRules = val; });
 
     // Add emergency contact
-    document.getElementById('addEmergencyBtn').addEventListener('click', () => {
+    const addEmergencyBtn = document.getElementById('addEmergencyBtn');
+    if (addEmergencyBtn) {
+      addEmergencyBtn.addEventListener('click', () => {
       if (!draft.emergency) draft.emergency = [];
       draft.emergency.push({ name: '', number: '' });
       markChanged();
       renderEmergencyContacts();
-    });
+      });
+    } else console.warn('AdminPage.bindEvents: #addEmergencyBtn not found');
 
     // Add amenity
-    document.getElementById('addAmenityBtn').addEventListener('click', () => {
+    const addAmenityBtn = document.getElementById('addAmenityBtn');
+    if (addAmenityBtn) {
+      addAmenityBtn.addEventListener('click', () => {
       const input = document.getElementById('newAmenity');
       const val = input.value.trim();
       if (!val) return;
@@ -298,25 +313,34 @@ const AdminPage = (() => {
       input.value = '';
       markChanged();
       renderAmenities();
-    });
+      });
+    } else console.warn('AdminPage.bindEvents: #addAmenityBtn not found');
 
-    document.getElementById('newAmenity').addEventListener('keydown', (e) => {
+    const newAmenityInput = document.getElementById('newAmenity');
+    if (newAmenityInput) {
+      newAmenityInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
         document.getElementById('addAmenityBtn').click();
       }
-    });
+      });
+    }
 
     // Add FAQ
-    document.getElementById('addFaqBtn').addEventListener('click', () => {
+    const addFaqBtn = document.getElementById('addFaqBtn');
+    if (addFaqBtn) {
+      addFaqBtn.addEventListener('click', () => {
       if (!draft.faqs) draft.faqs = [];
       draft.faqs.push({ question: '', answer: '' });
       markChanged();
       renderFaqs();
-    });
+      });
+    } else console.warn('AdminPage.bindEvents: #addFaqBtn not found');
 
     // Add tip
-    document.getElementById('addTipBtn').addEventListener('click', () => {
+    const addTipBtn = document.getElementById('addTipBtn');
+    if (addTipBtn) {
+      addTipBtn.addEventListener('click', () => {
       const input = document.getElementById('newTip');
       const val = input.value.trim();
       if (!val) return;
@@ -325,75 +349,90 @@ const AdminPage = (() => {
       input.value = '';
       markChanged();
       renderTips();
-    });
+      });
+    } else console.warn('AdminPage.bindEvents: #addTipBtn not found');
 
-    document.getElementById('newTip').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        document.getElementById('addTipBtn').click();
-      }
-    });
+    const newTipInput = document.getElementById('newTip');
+    if (newTipInput) {
+      newTipInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const btn = document.getElementById('addTipBtn'); if (btn) btn.click();
+        }
+      });
+    }
 
     // Image upload
     const uploadZone = document.getElementById('uploadZone');
     const imageInput = document.getElementById('imageInput');
-
-    uploadZone.addEventListener('click', () => imageInput.click());
-    uploadZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadZone.style.borderColor = 'var(--color-primary)';
-      uploadZone.style.background = 'var(--color-primary-light)';
-    });
-    uploadZone.addEventListener('dragleave', () => {
-      uploadZone.style.borderColor = '';
-      uploadZone.style.background = '';
-    });
-    uploadZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      uploadZone.style.borderColor = '';
-      uploadZone.style.background = '';
-      handleFiles(e.dataTransfer.files);
-    });
-    imageInput.addEventListener('change', (e) => {
-      handleFiles(e.target.files);
-      e.target.value = '';
-    });
+    if (uploadZone && imageInput) {
+      uploadZone.addEventListener('click', () => imageInput.click());
+      uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.style.borderColor = 'var(--color-primary)';
+        uploadZone.style.background = 'var(--color-primary-light)';
+      });
+      uploadZone.addEventListener('dragleave', () => {
+        uploadZone.style.borderColor = '';
+        uploadZone.style.background = '';
+      });
+      uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.style.borderColor = '';
+        uploadZone.style.background = '';
+        handleFiles(e.dataTransfer.files);
+      });
+      imageInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+        e.target.value = '';
+      });
+    } else console.warn('AdminPage.bindEvents: upload zone or image input missing');
 
     // FIX: Save button — always clickable, reads live values from form before saving
-    document.getElementById('saveBtn').addEventListener('click', saveProperty);
+    const saveBtnEl = document.getElementById('saveBtn');
+    if (saveBtnEl) saveBtnEl.addEventListener('click', saveProperty);
+    else console.warn('AdminPage.bindEvents: #saveBtn not found');
 
     // Preview button
-    document.getElementById('previewBtn').addEventListener('click', async () => {
-      if (hasChanges) {
-        if (confirm('Save changes before previewing?')) {
-          await saveProperty();
+    const previewBtn = document.getElementById('previewBtn');
+    if (previewBtn) {
+      previewBtn.addEventListener('click', async () => {
+        if (hasChanges) {
+          if (confirm('Save changes before previewing?')) {
+            await saveProperty();
+          }
         }
-      }
-      const pid = draft && draft.id ? draft.id : await GuidebookData.getActivePropertyId();
-      const url = 'index.html' + (pid ? ('?property=' + encodeURIComponent(pid)) : '');
-      window.open(url, '_blank');
-    });
+        const pid = draft && draft.id ? draft.id : await GuidebookData.getActivePropertyId();
+        const url = 'index.html' + (pid ? ('?property=' + encodeURIComponent(pid)) : '');
+        window.open(url, '_blank');
+      });
+    } else console.warn('AdminPage.bindEvents: #previewBtn not found');
 
     // QR Code button
-    document.getElementById('qrBtn').addEventListener('click', showQRModal);
+    const qrBtn = document.getElementById('qrBtn');
+    if (qrBtn) qrBtn.addEventListener('click', showQRModal);
+    else console.warn('AdminPage.bindEvents: #qrBtn not found');
 
-    document.getElementById('qrModalOverlay').addEventListener('click', (e) => {
-      if (e.target === e.currentTarget) closeQRModal();
-    });
-    document.getElementById('closeQrModal').addEventListener('click', closeQRModal);
+    const qrOverlay = document.getElementById('qrModalOverlay');
+    if (qrOverlay) qrOverlay.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeQRModal(); });
+    const closeQr = document.getElementById('closeQrModal');
+    if (closeQr) closeQr.addEventListener('click', closeQRModal);
 
     // Clear feedback
-    document.getElementById('clearFeedbackBtn').addEventListener('click', async () => {
-      if (confirm('Clear all guest feedback for this property? This cannot be undone.')) {
-        try {
-          await GuidebookData.clearFeedback(draft.id);
-          await renderFeedbackAdmin();
-          GuidebookUI.showToast('Feedback cleared.', 'info');
-        } catch (e) {
-          alert('Failed to clear feedback: ' + (e.message || e));
+    const clearFbBtn = document.getElementById('clearFeedbackBtn');
+    if (clearFbBtn) {
+      clearFbBtn.addEventListener('click', async () => {
+        if (confirm('Clear all guest feedback for this property? This cannot be undone.')) {
+          try {
+            await GuidebookData.clearFeedback(draft.id);
+            await renderFeedbackAdmin();
+            GuidebookUI.showToast('Feedback cleared.', 'info');
+          } catch (e) {
+            alert('Failed to clear feedback: ' + (e.message || e));
+          }
         }
-      }
-    });
+      });
+    } else console.warn('AdminPage.bindEvents: #clearFeedbackBtn not found');
   }
 
   function bindInputTracking(elementId, updateFn) {
