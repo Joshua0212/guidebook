@@ -7,12 +7,10 @@
   <meta name="description" content="Host Editor — manage your property guidebook settings.">
   <title>Host Editor — Guest Guidebook</title>
   <link rel="stylesheet" href="css/style.css">
-  <!-- QR Code Library (removed defer to avoid race when used in click handler) (BUG 4) -->
+  <!-- QR Code Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <!-- Centralized Firebase init to avoid race and duplicated configs (BUG 1 & 7) -->
-  <script type="module">
-    import './js/firebase.js';
-  </script>
+  <!-- Firebase init must stay as a module (uses ES import syntax) -->
+  <script type="module" src="js/firebase.js"></script>
 </head>
 
 <body class="admin-page">
@@ -200,7 +198,7 @@
       <span class="label">Preview</span>
     </button>
 
-    <button class="action-btn primary" id="saveBtn" disabled>
+    <button class="action-btn primary" id="saveBtn">
       <span class="icon">💾</span>
       <span class="label">Save</span>
     </button>

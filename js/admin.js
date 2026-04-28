@@ -10,12 +10,14 @@ const AdminPage = (() => {
 
   async function init() {
     try {
-      // Ensure Firebase is initialized before attaching listeners
-      await GuidebookData.waitForDb(3000);
+      // Ensure Firebase is initialized before attaching listeners, with timeout for offline/local mode
+      await GuidebookData.waitForDb(2000).catch((err) => {
+        console.warn('Firebase connection timeout (expected in local/offline mode):', err);
+        // Continue anyway - we'll use localStorage fallbacks
+      });
     } catch (e) {
-      alert('Firebase not ready. Admin features are disabled. Refresh to retry.');
-      console.error('Firebase not ready:', e);
-      return;
+      console.warn('Firebase initialization warning:', e);
+      // Don't fail - continue with local mode
     }
 
     await GuidebookUI.initTheme();
@@ -62,9 +64,8 @@ const AdminPage = (() => {
   function updateSaveBarState() {
     const saveBtn = document.getElementById('saveBtn');
     if (saveBtn) {
-      // FIX: Button is always enabled so host can save at any time
-      saveBtn.disabled = false;
-      saveBtn.style.opacity = hasChanges ? '1' : '0.7';
+      saveBtn.disabled = !hasChanges;
+      saveBtn.style.opacity = hasChanges ? '1' : '0.5';
     }
   }
 
@@ -437,11 +438,18 @@ const AdminPage = (() => {
 
   function bindInputTracking(elementId, updateFn) {
     const el = document.getElementById(elementId);
-    if (!el) return;
-    el.addEventListener('input', () => {
+    if (!el) {
+      console.warn(`bindInputTracking: element #${elementId} not found`);
+      return;
+    }
+    console.log(`bindInputTracking: attached listener to #${elementId}`);
+    const handler = () => {
+      console.log(`change/input event on #${elementId}: value="${el.value}"`);
       updateFn(el.value);
       markChanged();
-    });
+    };
+    el.addEventListener('input', handler);
+    el.addEventListener('change', handler);
   }
 
   /* ========== CRUD Helpers ========== */
@@ -569,8 +577,7 @@ const AdminPage = (() => {
       try {
         await GuidebookData.waitForDb(3000);
       } catch (e) {
-        GuidebookUI.showToast('Firebase not ready. Please refresh and try again.', 'error');
-        return;
+        throw new Error('Firebase not ready. Please refresh and try again.');
       }
 
       // create if needed
@@ -594,9 +601,8 @@ const AdminPage = (() => {
       GuidebookUI.showToast(e.message || 'Failed to save. Check console for details.', 'error');
     } finally {
       if (saveBtn) {
-        saveBtn.disabled = false;
         saveBtn.querySelector('.label').textContent = 'Save';
-        saveBtn.style.opacity = hasChanges ? '1' : '0.7';
+        updateSaveBarState();
       }
     }
   }
@@ -647,4 +653,32 @@ const AdminPage = (() => {
   };
 })();
 
-document.addEventListener('DOMContentLoaded', AdminPage.init);
+// firebase.js is a module and loads asynchronously — wait for it to signal
+// readiness before initialising the page. Fall back after 4s in offline mode.
+(function () {
+  let started = false;
+
+  function start() {
+    if (started) return;
+    started = true;
+    AdminPage.init();
+  }
+
+  function onReady() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', start);
+    } else {
+      start();
+    }
+  }
+
+  if (window.db) {
+    // Already ready
+    onReady();
+  } else {
+    // Wait for firebase.js module to finish
+    window.addEventListener('firebaseReady', onReady);
+    // Fallback: start anyway after 4s (offline / blocked mode)
+    setTimeout(onReady, 4000);
+  }
+})();

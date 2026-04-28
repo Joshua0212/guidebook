@@ -1272,23 +1272,6 @@ select {
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--color-surface);
-  border-top: 1px solid var(--color-border);
-  padding: var(--space-md) var(--space-lg);
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-md);
-  z-index: 500;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
-}
-
-/* Buttons default */
-.save-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
 
   display: flex;
   justify-content: space-around;
@@ -1300,8 +1283,9 @@ select {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-  z-index: 1000;
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+  z-index: 1100;
 }
 
 /* Buttons now expand equally */
@@ -1348,7 +1332,13 @@ select {
 
 /* Disabled */
 .action-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-btn.primary:disabled {
+  opacity: 0.65;
+  color: #b8953d;
 }
 
 /* QR Code Modal */

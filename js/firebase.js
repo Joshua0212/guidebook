@@ -22,12 +22,12 @@ window.db = getFirestore(app);
 const auth = getAuth(app);
 signInAnonymously(auth).then(() => {
   console.log('Firebase: signed in anonymously');
+  window.dispatchEvent(new Event('firebaseReady'));
 }).catch((err) => {
   console.warn('Firebase anonymous sign-in failed:', err && err.message ? err.message : err);
+  // Still dispatch so the page can attempt unauthenticated reads
+  window.dispatchEvent(new Event('firebaseReady'));
 });
-
-// Dispatch a custom event so classic scripts can wait for firebase readiness
-window.dispatchEvent(new Event('firebaseReady'));
 
 // Export db for module consumers
 export const db = window.db;
