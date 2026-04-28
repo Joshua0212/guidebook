@@ -21,6 +21,27 @@
   <script src="js/data.js"></script>
   <script src="js/ui.js"></script>
   <script>
+    // Wait for Firebase to be ready before initializing the page
+    async function initPageWhenReady() {
+      // Wait for firebaseReady event or timeout
+      await Promise.race([
+        new Promise(resolve => window.addEventListener('firebaseReady', resolve)),
+        new Promise(resolve => setTimeout(resolve, 5000))
+      ]);
+      
+      // Initialize the page - check if DOM is ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          GuidebookUI.initGuestPage(renderPage);
+        });
+      } else {
+        // DOM is already loaded
+        GuidebookUI.initGuestPage(renderPage);
+      }
+    }
+
+    initPageWhenReady();
+
     /**
      * Render the Welcome / Overview page
      * Shows a hero section with property name and quick-link cards to all sections

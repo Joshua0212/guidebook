@@ -36,9 +36,26 @@ const GuidebookUI = (() => {
    * Render the top navigation bar and side drawer
    */
   async function renderNavigation() {
-    const currentPage = getCurrentPage();
-    const property = await GuidebookData.getActiveProperty();
-    const brandName = property ? property.name : 'Guidebook';
+    try {
+      const currentPage = getCurrentPage();
+      
+      // Get property with timeout to handle Firebase offline mode
+      const propertyTimeout = new Promise((resolve) => {
+        setTimeout(() => {
+          console.warn('renderNavigation: property fetch timed out, using null');
+          resolve(null);
+        }, 2000);
+      });
+      
+      const property = await Promise.race([
+        GuidebookData.getActiveProperty(),
+        propertyTimeout
+      ]).catch((err) => {
+        console.warn('renderNavigation: property fetch error:', err);
+        return null;
+      });
+      
+      const brandName = property ? property.name : 'Guidebook';
 
     // Top Nav
     const topNav = document.createElement('nav');
@@ -153,6 +170,19 @@ const GuidebookUI = (() => {
 
     // Bind events
     bindNavigationEvents();
+    } catch (err) {
+      console.error('renderNavigation error:', err);
+      // Still try to render a minimal nav
+      const fallbackNav = document.createElement('nav');
+      fallbackNav.className = 'top-nav';
+      fallbackNav.innerHTML = `
+        <div class="nav-brand">
+          <div class="brand-icon">🏡</div>
+          <span>Guidebook</span>
+        </div>
+      `;
+      document.body.prepend(fallbackNav);
+    }
   }
 
   /**
@@ -333,10 +363,48 @@ const GuidebookUI = (() => {
    * Initialize a guest page — renders nav, theme, and loads property data
    * @param {Function} renderFn - Page-specific render function
    */
+  let initGuestPageCalled = false;
   async function initGuestPage(renderFn) {
-    await initTheme();
-    await renderNavigation();
-    const property = await GuidebookData.getActiveProperty();
+    if (initGuestPageCalled) {
+      console.log('initGuestPage already called, skipping');
+      return;
+    }
+    initGuestPageCalled = true;
+    
+    initTheme();
+    
+    // Set a timeout for navigation rendering to prevent hanging
+    const navigationTimeout = new Promise((resolve) => {
+      setTimeout(() => {
+        console.warn('Navigation rendering timed out after 5s');
+        resolve();
+      }, 5000);
+    });
+    
+    // Race between actual rendering and timeout
+    await Promise.race([
+      renderNavigation(),
+      navigationTimeout
+    ]).catch((err) => {
+      console.error('Navigation rendering error:', err);
+    });
+    
+    // Get property data with timeout
+    const propertyTimeout = new Promise((resolve) => {
+      setTimeout(() => {
+        console.warn('Property loading timed out after 3s, using null');
+        resolve(null);
+      }, 3000);
+    });
+    
+    const property = await Promise.race([
+      GuidebookData.getActiveProperty(),
+      propertyTimeout
+    ]).catch((err) => {
+      console.error('Property loading error:', err);
+      return null;
+    });
+    
     if (property && renderFn) {
       renderFn(property);
     } else if (renderFn) {

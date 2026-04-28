@@ -261,7 +261,8 @@ const GuidebookData = (() => {
     getActiveProperty,
     getFeedback,
     addFeedback,
-    clearFeedback
-    ,getTheme,setTheme
+    clearFeedback,
+    getTheme,
+    setTheme
   };
 })();
